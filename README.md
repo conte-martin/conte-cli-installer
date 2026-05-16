@@ -269,6 +269,10 @@ CONTE_CLI_TOKEN
 
 El token debe tener permisos para leer releases y assets del repositorio privado `conte-martin/conte-cli`. No debe documentarse ni exponerse el valor real del token.
 
+Para tokens fine-grained, `CONTE_CLI_TOKEN` debe tener acceso al repositorio privado fuente `conte-martin/conte-cli` y permisos de lectura de contenido y metadata del repositorio. La release fuente de `conte-cli` debe existir como GitHub Release publicada antes de ejecutar el workflow de publicacion del instalador; no alcanza con que exista solo el tag de Git.
+
+Por defecto, el workflow usa la misma version para la release publica del instalador y para la release fuente de `conte-cli`. Si esas versiones difieren, usar el input manual `conte_cli_version` o enviar `conte_cli_version` en el payload de `repository_dispatch`; ese valor debe coincidir con un tag/release existente en `conte-martin/conte-cli`.
+
 ## Pruebas
 
 El repositorio incluye smoke tests para `install.sh` y `uninstall.sh`:
