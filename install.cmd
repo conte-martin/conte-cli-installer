@@ -1,10 +1,10 @@
 @echo off
 :: Conte CLI installer for Windows CMD
 :: Delegates to install.ps1 via PowerShell
-:: Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+:: Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
 setlocal
 
-set "INSTALLER_URL=https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1"
+set "INSTALLER_URL=https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1"
 
 where powershell >nul 2>&1
 if %errorlevel% neq 0 (

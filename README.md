@@ -22,19 +22,19 @@ Los instaladores descargan `latest.json` desde la ultima release publica de este
 Linux / macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 ```
 
 Windows CMD:
 
 ```cmd
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
 ## Linux y macOS
@@ -42,19 +42,19 @@ curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/ma
 Instalar la ultima version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 ```
 
 Instalar una version especifica:
 
 ```bash
-CONTE_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+CONTE_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 ```
 
 Usar un directorio de instalacion personalizado:
 
 ```bash
-CONTE_HOME=/opt/conte curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+CONTE_HOME=/opt/conte curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 ```
 
 Por defecto, el binario queda en:
@@ -79,7 +79,7 @@ Por defecto, el binario queda en:
 Instalar la ultima version:
 
 ```powershell
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 ```
 
 El instalador de PowerShell:
@@ -95,14 +95,14 @@ Instalar una version especifica:
 
 ```powershell
 $env:CONTE_VERSION = "v1.2.3"
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 ```
 
 Usar un directorio de instalacion personalizado:
 
 ```powershell
 $env:CONTE_HOME = "$env:USERPROFILE\tools\conte"
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 ```
 
 En Windows, Conte CLI usa `bin\conte.cmd` como wrapper para ejecutar el entrypoint Bash `bin\conte`.
@@ -116,7 +116,7 @@ conte --version
 ## Windows CMD
 
 ```cmd
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
 `install.cmd` valida que PowerShell este disponible y ejecuta `install.ps1` con `ExecutionPolicy Bypass`.
@@ -151,13 +151,13 @@ Tambien puedes ejecutar el entrypoint directamente:
 Para actualizar, vuelve a ejecutar el instalador. La instalacion existente se sobrescribe con la version publicada en la release seleccionada.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 ```
 
 En Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 ```
 
 ## Desinstalar
@@ -165,25 +165,25 @@ irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/inst
 Linux / macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.ps1 | iex
+irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.ps1 | iex
 ```
 
 Windows CMD:
 
 ```cmd
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.ps1 | iex"
 ```
 
 Para desinstalar desde un `CONTE_HOME` personalizado:
 
 ```bash
-CONTE_HOME=/opt/conte curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.sh | bash
+CONTE_HOME=/opt/conte curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.sh | bash
 ```
 
 `uninstall.sh` elimina el directorio de instalacion, pero no modifica perfiles de shell. Si agregaste `~/.conte/bin` manualmente a `~/.bashrc`, `~/.zshrc` o `~/.profile`, elimina esa linea.
@@ -236,13 +236,13 @@ Cada release publica incluye un archivo `latest.json` usado por los instaladores
 ```json
 {
   "version": "vX.Y.Z",
-  "linux_x64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-linux-x64.tar.gz",
-  "linux_arm64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-linux-arm64.tar.gz",
-  "macos_x64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-macos-x64.tar.gz",
-  "macos_arm64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-macos-arm64.tar.gz",
-  "windows_x64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-windows-x64.zip",
-  "windows_installer_x64_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/conte-cli-installer-windows-x64.exe",
-  "checksums_url": "https://github.com/conte-martin/Conte.CLI.Installer/releases/download/vX.Y.Z/checksums.txt"
+  "linux_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-linux-x64.tar.gz",
+  "linux_arm64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-linux-arm64.tar.gz",
+  "macos_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-macos-x64.tar.gz",
+  "macos_arm64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-macos-arm64.tar.gz",
+  "windows_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-windows-x64.zip",
+  "windows_installer_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-installer-windows-x64.exe",
+  "checksums_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/checksums.txt"
 }
 ```
 
@@ -259,7 +259,7 @@ Flujo esperado:
 3. Este repositorio recibe un `repository_dispatch` de tipo `publish-release` o se ejecuta manualmente el workflow `Publish Release`.
 4. El workflow descarga los artifacts privados usando el secreto `CONTE_CLI_TOKEN`.
 5. El workflow genera `checksums.txt` y `latest.json`.
-6. El workflow crea la release publica en `Conte.CLI.Installer`.
+6. El workflow crea la release publica en `conte-cli-installer`.
 
 Secreto requerido en GitHub Actions:
 
@@ -302,7 +302,7 @@ export PATH="$HOME/.conte/bin:$PATH"
 Verifica conectividad y que exista una release publica con `latest.json`:
 
 ```bash
-curl -fsSL https://github.com/conte-martin/Conte.CLI.Installer/releases/latest/download/latest.json
+curl -fsSL https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json
 ```
 
 ### Checksum mismatch
@@ -310,7 +310,7 @@ curl -fsSL https://github.com/conte-martin/Conte.CLI.Installer/releases/latest/d
 El archivo descargado no coincide con el checksum publicado. Borra la descarga temporal, vuelve a ejecutar el instalador y, si el error persiste, abre un issue:
 
 ```text
-https://github.com/conte-martin/Conte.CLI.Installer/issues
+https://github.com/conte-martin/conte-cli-installer/issues
 ```
 
 ### Windows: error de execution policy
@@ -318,7 +318,7 @@ https://github.com/conte-martin/Conte.CLI.Installer/issues
 Ejecuta el instalador con bypass explicito:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex"
 ```
 
 ### Windows: Git Bash no detectado
