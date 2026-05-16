@@ -257,10 +257,10 @@ test_sha256_compute_matches() {
 # ── Metadata URL versioning ───────────────────────────────────────────────────
 
 test_version_url_substitution() {
-  local base="https://github.com/conte-martin/Conte.CLI.Installer/releases/latest/download/latest.json"
+  local base="https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json"
   local versioned
   versioned="$(printf '%s' "$base" | sed 's|/releases/latest/download/|/releases/download/v1.2.3/|')"
-  expected="https://github.com/conte-martin/Conte.CLI.Installer/releases/download/v1.2.3/latest.json"
+  expected="https://github.com/conte-martin/conte-cli-installer/releases/download/v1.2.3/latest.json"
   [ "$versioned" = "$expected" ] \
     && pass "version_url: substitution correct" || fail_test "version_url: got $versioned"
 }

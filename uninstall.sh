@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Conte CLI uninstaller
-# Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.sh | bash
 set -euo pipefail
 
 CONTE_HOME="${CONTE_HOME:-$HOME/.conte}"
