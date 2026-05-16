@@ -131,7 +131,7 @@ jobs:
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          BASE="https://github.com/conte-martin/Conte.CLI.Installer/releases/download/$VERSION"
+          BASE="https://github.com/conte-martin/conte-cli-installer/releases/download/$VERSION"
           cat > release-artifacts/latest.json <<EOF
           {
             "version": "$VERSION",
@@ -169,20 +169,20 @@ jobs:
 
             **Linux / macOS**
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
             ```
 
             **Windows PowerShell**
             ```powershell
-            irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+            irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
             ```
 
             **Windows CMD**
             ```cmd
-            curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+            curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
             ```
 
-            See [README](https://github.com/conte-martin/Conte.CLI.Installer#readme) for full installation instructions.
+            See [README](https://github.com/conte-martin/conte-cli-installer#readme) for full installation instructions.
           files: |
             release-artifacts/conte-cli-linux-x64.tar.gz
             release-artifacts/conte-cli-linux-arm64.tar.gz
