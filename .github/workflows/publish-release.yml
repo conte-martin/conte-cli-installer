@@ -1,0 +1,198 @@
+name: Publish Release
+
+# Triggered manually or by a repository_dispatch from conte-cli.
+# Downloads private release artifacts using CONTE_CLI_TOKEN (CI secret only),
+# then republishes them as public assets on this repository.
+# CONTE_CLI_TOKEN is never exposed in scripts, logs, docs, or README examples.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.2.3)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [publish-release]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout installer scripts
+        uses: actions/checkout@v6
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client_payload.version }}"
+            PRERELEASE="${{ github.event.client_payload.prerelease || 'false' }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+            PRERELEASE="${{ github.event.inputs.prerelease }}"
+          fi
+
+          VERSION="$(printf '%s' "$VERSION" | tr -d '\r\n\t ')"
+
+          if [ -z "$VERSION" ]; then
+            echo "Missing release version."
+            exit 1
+          fi
+
+          if ! printf '%s' "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid release version: '$VERSION'. Expected vX.Y.Z."
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Download release artifacts from conte-cli
+        env:
+          CONTE_CLI_TOKEN: ${{ secrets.CONTE_CLI_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+
+          if [ -z "${CONTE_CLI_TOKEN:-}" ]; then
+            echo "Missing required secret: CONTE_CLI_TOKEN"
+            exit 1
+          fi
+
+          # Fetch the release metadata from the private source repository
+          RELEASE_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer $CONTE_CLI_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/conte-martin/conte-cli/releases/tags/$VERSION")"
+
+          ASSETS=(
+            "conte-cli-linux-x64.tar.gz"
+            "conte-cli-linux-arm64.tar.gz"
+            "conte-cli-macos-x64.tar.gz"
+            "conte-cli-macos-arm64.tar.gz"
+            "conte-cli-windows-x64.zip"
+            "conte-cli-installer-windows-x64.exe"
+          )
+
+          for ASSET in "${ASSETS[@]}"; do
+            ASSET_ID="$(printf '%s' "$RELEASE_JSON" \
+              | jq -r ".assets[] | select(.name == \"$ASSET\") | .id")"
+
+            if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
+              echo "Missing required asset in private release $VERSION: $ASSET"
+              exit 1
+            fi
+
+            echo "Downloading $ASSET (id=$ASSET_ID)..."
+            curl -fsSL \
+              -H "Authorization: Bearer $CONTE_CLI_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/conte-martin/conte-cli/releases/assets/$ASSET_ID" \
+              -o "release-artifacts/$ASSET"
+          done
+
+          for ASSET in "${ASSETS[@]}"; do
+            if [ ! -s "release-artifacts/$ASSET" ]; then
+              echo "Downloaded artifact is missing or empty: $ASSET"
+              exit 1
+            fi
+          done
+
+      - name: Generate checksums.txt
+        run: |
+          cd release-artifacts
+          sha256sum \
+            conte-cli-linux-x64.tar.gz \
+            conte-cli-linux-arm64.tar.gz \
+            conte-cli-macos-x64.tar.gz \
+            conte-cli-macos-arm64.tar.gz \
+            conte-cli-windows-x64.zip \
+            conte-cli-installer-windows-x64.exe \
+            > checksums.txt
+          echo "--- checksums.txt ---"
+          cat checksums.txt
+
+      - name: Generate latest.json
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          BASE="https://github.com/conte-martin/Conte.CLI.Installer/releases/download/$VERSION"
+          cat > release-artifacts/latest.json <<EOF
+          {
+            "version": "$VERSION",
+            "linux_x64_url": "$BASE/conte-cli-linux-x64.tar.gz",
+            "linux_arm64_url": "$BASE/conte-cli-linux-arm64.tar.gz",
+            "macos_x64_url": "$BASE/conte-cli-macos-x64.tar.gz",
+            "macos_arm64_url": "$BASE/conte-cli-macos-arm64.tar.gz",
+            "windows_x64_url": "$BASE/conte-cli-windows-x64.zip",
+            "windows_installer_x64_url": "$BASE/conte-cli-installer-windows-x64.exe",
+            "checksums_url": "$BASE/checksums.txt"
+          }
+          EOF
+          echo "--- latest.json ---"
+          cat release-artifacts/latest.json
+          jq empty release-artifacts/latest.json
+
+      - name: Validate installer scripts
+        run: |
+          set -euo pipefail
+          for SCRIPT in install.sh install.ps1 install.cmd; do
+            if [ ! -f "$SCRIPT" ]; then
+              echo "Missing installer script: $SCRIPT"
+              exit 1
+            fi
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: Conte CLI ${{ steps.ver.outputs.version }}
+          prerelease: ${{ steps.ver.outputs.prerelease }}
+          body: |
+            ## Installation
+
+            **Linux / macOS**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+            ```
+
+            **Windows PowerShell**
+            ```powershell
+            irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+            ```
+
+            **Windows CMD**
+            ```cmd
+            curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.cmd -o install.cmd && install.cmd && del install.cmd
+            ```
+
+            See [README](https://github.com/conte-martin/Conte.CLI.Installer#readme) for full installation instructions.
+          files: |
+            release-artifacts/conte-cli-linux-x64.tar.gz
+            release-artifacts/conte-cli-linux-arm64.tar.gz
+            release-artifacts/conte-cli-macos-x64.tar.gz
+            release-artifacts/conte-cli-macos-arm64.tar.gz
+            release-artifacts/conte-cli-windows-x64.zip
+            release-artifacts/conte-cli-installer-windows-x64.exe
+            release-artifacts/checksums.txt
+            release-artifacts/latest.json
+            install.sh
+            install.ps1
+            install.cmd
+          fail_on_unmatched_files: true
