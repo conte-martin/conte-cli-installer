@@ -17,6 +17,10 @@ on:
         required: false
         type: boolean
         default: false
+      conte_cli_version:
+        description: 'Source Conte CLI release version (defaults to version)'
+        required: false
+        type: string
   repository_dispatch:
     types: [publish-release]
 
@@ -33,21 +37,37 @@ jobs:
 
       - name: Resolve version
         id: ver
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          DISPATCH_CONTE_CLI_VERSION: ${{ github.event.client_payload.conte_cli_version }}
+          DISPATCH_PRERELEASE: ${{ github.event.client_payload.prerelease || 'false' }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_CONTE_CLI_VERSION: ${{ github.event.inputs.conte_cli_version }}
+          INPUT_PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client_payload.version }}"
-            PRERELEASE="${{ github.event.client_payload.prerelease || 'false' }}"
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            VERSION="${DISPATCH_VERSION:-}"
+            CONTE_CLI_VERSION="${DISPATCH_CONTE_CLI_VERSION:-${DISPATCH_VERSION:-}}"
+            PRERELEASE="${DISPATCH_PRERELEASE:-false}"
           else
-            VERSION="${{ github.event.inputs.version }}"
-            PRERELEASE="${{ github.event.inputs.prerelease }}"
+            VERSION="${INPUT_VERSION:-}"
+            CONTE_CLI_VERSION="${INPUT_CONTE_CLI_VERSION:-${INPUT_VERSION:-}}"
+            PRERELEASE="${INPUT_PRERELEASE:-false}"
           fi
 
           VERSION="$(printf '%s' "$VERSION" | tr -d '\r\n\t ')"
+          CONTE_CLI_VERSION="$(printf '%s' "$CONTE_CLI_VERSION" | tr -d '\r\n\t ')"
 
           if [ -z "$VERSION" ]; then
             echo "Missing release version."
+            exit 1
+          fi
+
+          if [ -z "$CONTE_CLI_VERSION" ]; then
+            echo "Missing source CLI version. Set conte_cli_version or version."
             exit 1
           fi
 
@@ -56,28 +76,90 @@ jobs:
             exit 1
           fi
 
+          if ! printf '%s' "$CONTE_CLI_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid source CLI release version: '$CONTE_CLI_VERSION'. Expected vX.Y.Z."
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "conte_cli_version=$CONTE_CLI_VERSION" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Download release artifacts from conte-cli
         env:
           CONTE_CLI_TOKEN: ${{ secrets.CONTE_CLI_TOKEN }}
           VERSION: ${{ steps.ver.outputs.version }}
+          CONTE_CLI_VERSION: ${{ steps.ver.outputs.conte_cli_version }}
         run: |
           set -euo pipefail
           mkdir -p release-artifacts
+
+          SOURCE_REPO="conte-martin/conte-cli"
+          SOURCE_VERSION="${CONTE_CLI_VERSION:-${VERSION:-}}"
 
           if [ -z "${CONTE_CLI_TOKEN:-}" ]; then
             echo "Missing required secret: CONTE_CLI_TOKEN"
             exit 1
           fi
 
-          # Fetch the release metadata from the private source repository
-          RELEASE_JSON="$(curl -fsSL \
-            -H "Authorization: Bearer $CONTE_CLI_TOKEN" \
+          if [ -z "$SOURCE_VERSION" ]; then
+            echo "Missing source CLI version. Set CONTE_CLI_VERSION or VERSION."
+            exit 1
+          fi
+
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "Missing required dependency: jq"
+            exit 1
+          fi
+
+          echo "Checking access to source repository: $SOURCE_REPO"
+          REPO_STATUS="$(curl -sS -o /tmp/source-repo.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CONTE_CLI_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/conte-martin/conte-cli/releases/tags/$VERSION")"
+            "https://api.github.com/repos/$SOURCE_REPO")"
+
+          if [ "$REPO_STATUS" != "200" ]; then
+            echo "Unable to access source repository: $SOURCE_REPO"
+            echo "HTTP status: $REPO_STATUS"
+            if [ "$REPO_STATUS" = "401" ] || [ "$REPO_STATUS" = "403" ] || [ "$REPO_STATUS" = "404" ]; then
+              echo "Check that CONTE_CLI_TOKEN has access to the private source repository."
+              echo "For fine-grained PATs, grant repository access plus read permissions for contents and metadata."
+            fi
+            echo "Sanitized API response:"
+            jq -r '.message? // empty' /tmp/source-repo.json 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Fetching source release metadata: $SOURCE_REPO@$SOURCE_VERSION"
+          RELEASE_STATUS="$(curl -sS -o /tmp/source-release.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CONTE_CLI_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$SOURCE_REPO/releases/tags/$SOURCE_VERSION")"
+
+          if [ "$RELEASE_STATUS" != "200" ]; then
+            echo "Unable to fetch source release metadata."
+            echo "Source repository: $SOURCE_REPO"
+            echo "Source release tag: $SOURCE_VERSION"
+            echo "HTTP status: $RELEASE_STATUS"
+
+            if [ "$RELEASE_STATUS" = "404" ]; then
+              echo "Possible causes:"
+              echo "- The release tag was not found in $SOURCE_REPO."
+              echo "- CONTE_CLI_TOKEN lacks access to the private source repository."
+              echo "- The source repository has a Git tag but not a published GitHub Release for this tag."
+              echo "Check that $SOURCE_REPO has a published GitHub Release for tag $SOURCE_VERSION."
+            elif [ "$RELEASE_STATUS" = "401" ] || [ "$RELEASE_STATUS" = "403" ]; then
+              echo "Token permission error. Check CONTE_CLI_TOKEN permissions."
+            fi
+
+            echo "Sanitized API response:"
+            jq -r '.message? // empty' /tmp/source-release.json 2>/dev/null || true
+            exit 1
+          fi
+
+          RELEASE_JSON="$(cat /tmp/source-release.json)"
 
           ASSETS=(
             "conte-cli-linux-x64.tar.gz"
@@ -93,16 +175,21 @@ jobs:
               | jq -r ".assets[] | select(.name == \"$ASSET\") | .id")"
 
             if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
-              echo "Missing required asset in private release $VERSION: $ASSET"
+              echo "Missing required asset in source release."
+              echo "Source repository: $SOURCE_REPO"
+              echo "Source release tag: $SOURCE_VERSION"
+              echo "Missing asset: $ASSET"
+              echo "Available assets:"
+              printf '%s' "$RELEASE_JSON" | jq -r '.assets[].name'
               exit 1
             fi
 
             echo "Downloading $ASSET (id=$ASSET_ID)..."
             curl -fsSL \
-              -H "Authorization: Bearer $CONTE_CLI_TOKEN" \
+              -H "Authorization: Bearer ${CONTE_CLI_TOKEN}" \
               -H "Accept: application/octet-stream" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/conte-martin/conte-cli/releases/assets/$ASSET_ID" \
+              "https://api.github.com/repos/$SOURCE_REPO/releases/assets/$ASSET_ID" \
               -o "release-artifacts/$ASSET"
           done
 
