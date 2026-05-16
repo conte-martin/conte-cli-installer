@@ -3,7 +3,7 @@
 :: Delegates to uninstall.ps1 via PowerShell
 setlocal
 
-set "UNINSTALLER_URL=https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.ps1"
+set "UNINSTALLER_URL=https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.ps1"
 
 where powershell >nul 2>&1
 if %errorlevel% neq 0 (

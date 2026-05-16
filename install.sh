@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Conte CLI public installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.sh | bash
 set -euo pipefail
 
 CONTE_HOME="${CONTE_HOME:-$HOME/.conte}"
 CONTE_BIN_DIR="$CONTE_HOME/bin"
-CONTE_RELEASE_METADATA_URL="${CONTE_RELEASE_METADATA_URL:-https://github.com/conte-martin/Conte.CLI.Installer/releases/latest/download/latest.json}"
+CONTE_RELEASE_METADATA_URL="${CONTE_RELEASE_METADATA_URL:-https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json}"
 CONTE_VERSION="${CONTE_VERSION:-}"
 CONTE_VERBOSE="${CONTE_VERBOSE:-false}"
 

@@ -1,6 +1,6 @@
 #Requires -Version 5.0
 # Conte CLI uninstaller for Windows PowerShell
-# Usage: irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/uninstall.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/uninstall.ps1 | iex
 
 & {
     $ErrorActionPreference = 'Stop'

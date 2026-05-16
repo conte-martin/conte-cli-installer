@@ -1,6 +1,6 @@
 #Requires -Version 5.0
 # Conte CLI public installer for Windows PowerShell
-# Usage: irm https://raw.githubusercontent.com/conte-martin/Conte.CLI.Installer/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/conte-martin/conte-cli-installer/main/install.ps1 | iex
 #
 # Conte CLI is Bash-first. The Windows ZIP payload contains:
 #   bin/conte      (Bash entry-point)
@@ -15,7 +15,7 @@
     $ConteHome   = if ($env:CONTE_HOME) { $env:CONTE_HOME } else { Join-Path $env:USERPROFILE '.conte' }
     $ConteBinDir = Join-Path $ConteHome 'bin'
     $MetadataUrl = if ($env:CONTE_RELEASE_METADATA_URL) { $env:CONTE_RELEASE_METADATA_URL } `
-                   else { 'https://github.com/conte-martin/Conte.CLI.Installer/releases/latest/download/latest.json' }
+                   else { 'https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json' }
     $ConteVersion = $env:CONTE_VERSION
 
     function Write-Step($msg) { Write-Host $msg }
