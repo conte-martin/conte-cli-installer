@@ -184,6 +184,8 @@ Notes:
 - Conte also generates a repository-local commit template at `.conte/templates/commit-template.txt` with Conventional Commit guidance and mandatory scope examples.
 - Conte-managed hooks are installed under `.conte/hooks`, not directly into `.git/hooks`.
 - If local Git already has a user-managed `commit.template`, Conte preserves it, still generates its own template file, and prints a warning that activation was skipped.
+- Brand-new Conte configuration initializes the project version to `0.1.0`; reconfigure, `--force`, hook repair, `doctor --fix`, and `hooks reinstall` preserve the existing project version.
+- Project version is release state and changes only through `conte semver set-version` / `conte semver set` or release commands.
 - `--force` reinitializes from scratch without showing the already-initialized menu.
 - `--yes --force` reinitializes non-interactively using defaults.
 - A plain non-interactive rerun upgrades legacy initialized repos that predate the `hooks` section and repairs broken managed hook state when hooks are already expected to be enabled.
@@ -559,8 +561,12 @@ Behavior:
 - strategic hooks are `commit-msg`, `pre-push`, and `prepare-commit-msg`; `pre-commit` is also supported
 - every Conte-managed hook includes the `# Managed by Conte CLI` marker
 - `commit-msg` validates Conventional Commits with required scope and executes enabled Hook Tasks for `commit-msg`
+- `commit-msg` also blocks direct commits to protected branches after message validation as fallback protection
 - `prepare-commit-msg` loads the shared hook runtime and runs enabled Hook Tasks for `prepare-commit-msg`
-- `pre-commit` and `pre-push` validate the current branch against workflow rules and execute enabled Hook Tasks for their hook
+- `pre-commit` validates the current branch against workflow rules, blocks direct commits to protected branches, and executes enabled Hook Tasks for `pre-commit`
+- protected direct-commit branches are the resolved main branch, `main`, `master`, the resolved develop branch, and `develop`; duplicate names are shown only once
+- CI or release automation may explicitly allow a protected-branch commit with `CONTE_ALLOW_PROTECTED_BRANCH_COMMIT=true`; this override is automation-only
+- `pre-push` validates the current branch against workflow rules and executes enabled Hook Tasks for `pre-push`
 - `pre-push` blocks pushes when:
   - current branch name does not match the required format (base regex)
   - current branch type is not allowed by the configured workflow
@@ -587,7 +593,7 @@ Notes:
 - `conte hooks status` exits non-zero when hooks are enabled in config but broken or missing, and also when the repository is in a partially configured state
 - Windows hook execution requires Git Bash because Conte-managed hooks use Bash-compatible runtime scripts
 - `git commit --no-verify` and `git push --no-verify` bypass local hooks
-- local hooks can be bypassed with `git commit --no-verify`, so CI/CD remains required
+- local hooks can be bypassed with `git commit --no-verify`, so repository branch protection and CI/CD checks remain required
 
 ## `conte hooks task`
 

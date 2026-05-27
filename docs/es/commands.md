@@ -121,6 +121,8 @@ Comportamiento:
 - Es mutante: puede escribir `.conte/config.json`, `.conte/templates/commit-template.txt`, hooks en `.conte/hooks`, y configuracion Git local.
 - Si hooks quedan habilitados, Git se configura con `core.hooksPath=.conte/hooks`.
 - El commit template gestionado se escribe en `.conte/templates/commit-template.txt` y se activa con `git config commit.template .conte/templates/commit-template.txt`, salvo que ya exista un template local no gestionado.
+- Una configuracion Conte nueva inicia la version del proyecto en `0.1.0`; reconfigure, `--force`, reparacion de hooks, `doctor --fix` y `hooks reinstall` preservan la version existente.
+- La version del proyecto es estado de release y solo cambia con `conte semver set-version` / `conte semver set` o comandos de release.
 - Los workflows soportados por la configuracion actual son `trunk`, `gitflow` y `kanban`. `github-flow` y `release-flow` son nombres legacy detectables, pero no son workflows validos para nueva configuracion.
 - En Windows, la ejecucion posterior de hooks requiere Git Bash.
 
@@ -354,8 +356,12 @@ Comportamiento:
 - Los hooks gestionados incluyen `commit-msg`, `prepare-commit-msg`, `pre-commit`, `pre-push` y, cuando hay tareas, `post-merge`.
 - `conte hooks test commit-msg "<message>"` valida con las mismas reglas que el hook `commit-msg`.
 - `conte hooks test branch [branch-name]` valida la rama actual o indicada con las mismas reglas usadas por los hooks.
+- `pre-commit` bloquea commits directos en ramas protegidas antes de ejecutar Hook Tasks.
+- `commit-msg` tambien bloquea commits directos en ramas protegidas despues de validar el mensaje, como proteccion de respaldo.
+- Las ramas protegidas son la rama main resuelta, `main`, `master`, la rama develop resuelta y `develop`; los nombres duplicados se muestran una sola vez.
+- Automatizacion de CI o release puede habilitar explicitamente `CONTE_ALLOW_PROTECTED_BRANCH_COMMIT=true`; este override es solo para automatizacion.
 - En Windows, la ejecucion de hooks requiere Git Bash.
-- Los hooks locales pueden saltearse con `git commit --no-verify` o `git push --no-verify`; CI/CD sigue siendo requerido.
+- Los hooks locales pueden saltearse con `git commit --no-verify` o `git push --no-verify`; branch protection del repositorio y CI/CD siguen siendo requeridos.
 
 ## `conte hooks task`
 
