@@ -17,6 +17,29 @@ Commands that open menus in interactive mode (without arguments):
 Commands that are always direct (never open menus):
 - `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte self`
 
+## `conte help`
+
+Shows global help or command-specific help.
+
+Usage:
+
+```bash
+conte help
+conte help semver
+conte --help
+conte -h
+conte --version
+conte -v
+```
+
+Notes:
+
+- `conte help`, `conte --help`, and `conte -h` print the grouped global help.
+- `conte help <command>` delegates to command help for implemented top-level commands.
+- Unknown help topics fall back to global help.
+- `conte --version` and `conte -v` print the installed CLI version.
+- These commands do not modify repository or installation state and are suitable for scripts.
+
 ## `conte version`
 
 Prints the installed Conte CLI version only.
@@ -25,12 +48,14 @@ Usage:
 
 ```bash
 conte version
+conte version show
 ```
 
 Project versioning is intentionally separate:
 
 - `conte version` = installed Conte CLI version
 - `conte semver *` = project version stored in `.conte/config.json`
+- `conte version show` is accepted as an explicit alias for the default action
 
 Old project-version paths under `conte version`, such as `conte version current`, `conte version get`, `conte version next`, `conte version set`, and `conte version breaking`, have been removed. Use `conte semver` instead.
 
@@ -46,6 +71,14 @@ conte update --check
 conte update --version 1.2.3
 ```
 
+Options:
+
+- `--check`: check release metadata and report whether an update is available without installing.
+- `--version <x.y.z>`: request a specific CLI version.
+- `-h`, `--help`: show help.
+
+`--check` does not modify files. `conte update` and `conte update --version` can modify the installed CLI.
+
 ## `conte init`
 
 Initializes `.conte/config.json` using an interactive wizard or non-interactive defaults.
@@ -56,8 +89,12 @@ Usage:
 conte init
 conte init --yes
 conte init --workflow trunk --yes
+conte init --workflow gitflow --main-branch main --develop-branch develop --yes
+conte init --create-missing-branches --yes
+conte init --track-remote-branches --yes
 conte init --advanced
 conte init --force
+conte init --no-hooks --yes
 ```
 
 Behavior:
@@ -122,12 +159,14 @@ Options:
 
 - `--yes` / `-y`: run non-interactively using defaults. Exits 0 if already initialized (use `--force` to overwrite).
 - `--force` / `-f`: overwrite an existing `.conte/config.json` without prompting.
-- `--advanced`: show additional options during the wizard (scope pattern, individual hook selection, release command).
+- `--advanced`: accepted for compatibility; currently does not change parser behavior.
 - `--workflow <name>` / `-w`: skip the workflow selection step.
 - `--main-branch <name>`: skip the main branch prompt.
 - `--develop-branch <name>`: skip the develop branch prompt.
 - `--create-missing-branches`: create missing mapped branches when `HEAD` already points to a commit.
 - `--track-remote-branches`: create local tracking branches from `origin/<branch>` when the selected branch exists only on the remote.
+- `--no-hooks`: skip hook installation during initialization.
+- `--help` / `-h`: show command help.
 
 Notes:
 
@@ -192,6 +231,10 @@ In CI or non-interactive environments, `conte config` with no arguments prints t
 
 Without `--local` or `--global`, `conte config get <key>` returns the effective value after applying workspace, local, and global config layering. `conte config set <key> <value>` writes one repository-local value and validates known boolean and SemVer fields before writing.
 
+Readable keys include `workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, and `hooks.tasks`.
+
+Writable keys are limited to `workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `hooks.enabled`, and `hooks.path`. Manage `hooks.installed` and `hooks.tasks` with `conte hooks` commands.
+
 ## `conte uninstall`
 
 Removes only Conte-managed repository-local state for the current Git repository.
@@ -201,6 +244,7 @@ Usage:
 ```bash
 conte uninstall
 conte uninstall --yes
+conte uninstall -y
 ```
 
 Behavior:
@@ -233,8 +277,11 @@ Usage:
 
 ```bash
 conte semver get-version
+conte semver get
 conte semver set-version 1.2.3
+conte semver set 1.2.3
 conte semver next-version
+conte semver next
 conte semver breaking
 ```
 
@@ -249,9 +296,9 @@ conte semver next     # same as next-version
 Notes:
 
 - `conte version` shows the installed Conte CLI version.
-- `conte semver get-version` shows only the current project version (script-friendly).
-- `conte semver set-version <version>` sets the project version. Validates strict SemVer (`MAJOR.MINOR.PATCH`), updates `.conte/config.json` only (no tags, no changelog). Idempotent if version is already set.
-- `conte semver next-version` analyzes conventional commits since the last release/tag and prints only the next project version. Never writes files.
+- `conte semver get-version` and `conte semver get` show only the current project version (script-friendly).
+- `conte semver set-version <version>` and `conte semver set <version>` set the project version. Validates strict SemVer (`MAJOR.MINOR.PATCH`), updates `.conte/config.json` only (no tags, no changelog). Idempotent if version is already set.
+- `conte semver next-version` and `conte semver next` analyze conventional commits since the last release/tag and print only the next project version. Never writes files.
 - `conte semver breaking` marks the next release as MAJOR by setting `breakingChange.nextBump` to `major`. Does not change the version immediately. Idempotent.
 - after `conte semver breaking`, commit `.conte/config.json` before running `conte release create`:
 
@@ -276,6 +323,9 @@ Usage:
 
 ```bash
 conte generate cicd
+conte generate cicd github
+conte generate cicd gitlab
+conte generate cicd azure
 conte generate cicd --provider github
 conte generate cicd --provider gitlab
 conte generate cicd --provider azure
@@ -283,6 +333,8 @@ conte generate cicd --provider azure
 
 The generated template always calls the CLI instead of re-implementing validation rules in the provider file.
 The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/run.sh` when present.
+
+If no provider is supplied, interactive terminals prompt for one and non-interactive runs fall back to `github`.
 
 ## `conte status`
 
@@ -436,6 +488,24 @@ Exit codes:
 - `0` — validation passed
 - non-zero — validation failed; error details printed to stderr
 
+## `conte workflow`
+
+Runs explicit workflow checks.
+
+Usage:
+
+```bash
+conte workflow validate-merge --source feature/login --target develop
+conte workflow validate-merge -s feature/login -t develop
+```
+
+Notes:
+
+- `validate-merge` validates a source-to-target branch merge against the configured workflow rules
+- both `--source` and `--target` are required
+- `-s` and `-t` are short aliases for `--source` and `--target`
+- the command is non-interactive and does not modify repository state
+
 ## `conte hooks`
 
 Manages repository Git hooks. In an interactive terminal with no arguments, opens a menu.
@@ -452,8 +522,12 @@ conte hooks doctor
 conte hooks uninstall
 conte hooks test commit-msg "fix(auth): corregir token"
 conte hooks test branch feat/add-login
+conte hooks task
 conte hooks task list
+conte hooks task --help
 conte hooks task add dotnet-test --hook pre-push -- dotnet test
+conte hooks task add slow-check --hook manual --disabled -- ./check.sh
+conte hooks task edit dotnet-test --name dotnet-test-all --hook manual --enable -- dotnet test
 conte hooks task run dotnet-test
 ```
 
@@ -515,14 +589,32 @@ Notes:
 - `git commit --no-verify` and `git push --no-verify` bypass local hooks
 - local hooks can be bypassed with `git commit --no-verify`, so CI/CD remains required
 
-Hook Tasks:
+## `conte hooks task`
+
+Manages repository-local Hook Tasks.
+
+Usage:
+
+```bash
+conte hooks task
+conte hooks task list
+conte hooks task add dotnet-test --hook pre-push -- dotnet test
+conte hooks task add slow-check --hook manual --disabled -- ./check.sh
+conte hooks task edit dotnet-test --name dotnet-test-all --hook manual --enable -- dotnet test
+conte hooks task remove dotnet-test
+conte hooks task enable dotnet-test
+conte hooks task disable dotnet-test
+conte hooks task run dotnet-test
+conte hooks task menu
+```
 
 - `conte hooks task list` shows configured tasks
-- `conte hooks task add <name> --hook <hook|manual> -- <command>` adds a task
+- `conte hooks task add <name> --hook <hook|manual> [--disabled] -- <command>` adds a task
 - adding a task for a Git hook adds that hook to `hooks.installed`; if hooks are enabled, Conte writes the managed hook wrapper
-- `conte hooks task edit <name>` updates a task
+- `conte hooks task edit <name> [--name <new-name>] [--hook <hook|manual>] [--enable|--disable] [-- <command>]` updates a task
 - `conte hooks task enable|disable|remove|run <name>` manages a task
 - `conte hooks task menu` opens an interactive menu for long commands
+- supported Hook Task targets are `commit-msg`, `prepare-commit-msg`, `pre-commit`, `pre-push`, `post-merge`, and `manual`
 - Hook Tasks cannot register Conte commands or replace internal validation
 
 ## `conte self`
@@ -534,15 +626,17 @@ Usage:
 ```bash
 conte self version
 conte self update
+conte self update --check
 conte self update --version 1.2.3
 conte self uninstall
+conte self uninstall -y
 conte self uninstall --yes
 ```
 
 Subcommands:
 
 - `version` — show CLI version information (same as `conte version`)
-- `update` — update the installed Conte CLI (same as `conte update`)
+- `update` — update the installed Conte CLI (same as `conte update`; accepts `--check` and `--version <x.y.z>`)
 - `uninstall` — uninstall the global Conte CLI from `$CONTE_HOME`
 
 Notes:
@@ -578,12 +672,25 @@ Usage:
 
 ```bash
 conte release preview
+conte release preview --allow-empty-release
+conte release preview --scope us-12
+conte release preview -s us-12
+conte release preview --scope-mode strict
+conte release preview -m strict
+conte release preview --include-internal
+conte release preview --no-tag
+conte release preview --no-changelog
 conte release create
 conte release create --allow-empty-release
 conte release create --scope us-12
 conte release create -s us-12
+conte release create --scope us-12 --scope-mode strict
+conte release create -s us-12 -m strict
+conte release create --include-internal
 conte release create --no-tag
 conte release create --no-changelog
+conte release sync-develop
+conte release sync-develop --preview
 ```
 
 Behavior:
@@ -622,6 +729,8 @@ Notes:
 - scoped release creation can fail when the selected scope depends on commits outside that scope
 - `preview` prints the release summary and changelog preview without writing files
 - `--allow-empty-release` forces a patch release when commits are valid but non-versionable
+- `--scope-mode full|strict` controls scoped release branching; `-m` is the short alias
+- `--include-internal` includes internal `release` scope commits in the changelog
 - `version.current` stays bare SemVer while tags use `vX.Y.Z`
 - if changelog or tag creation fails, Conte restores release state instead of leaving partial updates behind
 - breaking syntax markers (`!` after scope, `BREAKING CHANGE` footer) are not part of the v1 commit format; only `conte semver breaking` activates a MAJOR release
@@ -631,7 +740,7 @@ Interactive menu (shown when called without arguments in a TTY):
 ```
 Conte release
 
-  1. Preview next release (--dry-run)
+  1. Preview next release (no writes)
   2. Create release
   3. Create release without tag (--no-tag)
   4. Show current version
@@ -644,6 +753,7 @@ Subcommands:
 
 - `preview` — preview the next release without writing files
 - `create [options]` — create release artifacts, update changelog/config, and create the tag according to config
+- `sync-develop [--preview]` — GitFlow-only command that merges the resolved production branch into the resolved develop branch; `--preview` shows what would be merged without writing files
 
 Notes:
 
