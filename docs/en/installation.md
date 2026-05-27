@@ -133,7 +133,7 @@ conte self update --version 1.2.3
 
 `conte update` and `conte self update` are equivalent. Both use the public metadata URL by default, preserve `CONTE_RELEASE_METADATA_URL`, do not require `GITHUB_TOKEN`, and do not mutate repository-local `.conte/config.json`.
 
-See `docs/en/usage.md` for update behavior details.
+See [Usage](usage.md) for update behavior details.
 
 ## Uninstalling the CLI
 
