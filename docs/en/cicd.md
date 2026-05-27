@@ -44,7 +44,7 @@ All generated templates run the CLI instead of duplicating validation rules:
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
-- `bash tests/run.sh` when present
+- `bash tests/test_install.sh` when present
 
 That means pipelines fail on:
 
@@ -73,7 +73,8 @@ The `conte-martin/conte-cli` repository uses separate GitHub Actions workflows b
 - `develop` opens PRs into `main`.
 - `main-gate.yml` fails unless the PR source branch is exactly `develop`, then runs release-candidate Linux validation and a Windows package dry run.
 - `main-smoke.yml` runs light validation after a push lands in `main`.
-- `release-from-tag.yml` is the only workflow that creates releases, and it runs only for tags matching `vX.Y.Z`.
+- In `conte-cli`, `release-from-tag.yml` is the only workflow that creates source CLI releases, and it runs only for tags matching `vX.Y.Z`.
+- In this installer repository, `.github/workflows/publish-release.yml` republishes those assets as public releases.
 
 The release path is:
 

@@ -334,7 +334,7 @@ conte generate cicd --provider azure
 ```
 
 The generated template always calls the CLI instead of re-implementing validation rules in the provider file.
-The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/run.sh` when present.
+The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/test_install.sh` when present.
 
 If no provider is supplied, interactive terminals prompt for one and non-interactive runs fall back to `github`.
 
