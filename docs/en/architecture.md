@@ -156,7 +156,7 @@ Each template is workflow-aware and provider-aware, but intentionally thin in lo
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
-- `bash tests/run.sh` when present
+- `bash tests/test_install.sh` when present
 
 That keeps branch validation, commit validation, config validation, and release validation inside one codebase.
 

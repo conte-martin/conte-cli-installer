@@ -333,7 +333,7 @@ Conte now generates CI/CD templates that call the CLI directly:
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
-- `bash tests/run.sh` when present
+- `bash tests/test_install.sh` when present
 
 Supported providers:
 
@@ -365,7 +365,7 @@ Repository GitHub Actions are split by branch flow:
 - tag `vX.Y.Z` -> private release in `conte-cli`
 - private release -> `repository_dispatch` -> public release in `conte-cli-installer`
 
-Only `release-from-tag.yml` creates releases.
+In `conte-cli`, only `release-from-tag.yml` creates source CLI releases. This installer repository republishes them through `.github/workflows/publish-release.yml`.
 
 ## Distribution
 
@@ -452,22 +452,22 @@ Open a new PowerShell terminal before running those commands.
 
 ## Documentation
 
-- [Architecture](docs/en/architecture.md)
-- [Repository State](docs/en/repository-state.md)
-- [Workflows](docs/en/workflows.md)
-- [Installation](docs/en/installation.md)
-- [Windows Installation](docs/installation/windows.md)
-- [Usage](docs/en/usage.md)
-- [Configuration](docs/en/configuration.md)
-- [Commands](docs/en/commands.md)
-- [CI/CD](docs/en/cicd.md)
-- [Release](docs/en/release.md)
-- [Changelog](docs/en/changelog.md)
+- [Architecture](en/architecture.md)
+- [Repository State](en/repository-state.md)
+- [Workflows](en/workflows.md)
+- [Installation](en/installation.md)
+- [Windows Installation](installation/windows.md)
+- [Usage](en/usage.md)
+- [Configuration](en/configuration.md)
+- [Commands](en/commands.md)
+- [CI/CD](en/cicd.md)
+- [Release](en/release.md)
+- [Changelog](en/changelog.md)
 
 ## Testing
 
 ```bash
-bash tests/run.sh
+bash tests/test_install.sh
 ```
 
 Windows users can still invoke the CLI through:
