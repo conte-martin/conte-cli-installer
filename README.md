@@ -229,60 +229,6 @@ En Windows PowerShell, tambien puedes agregarlo manualmente:
 | `CONTE_RELEASE_METADATA_URL` | URL alternativa para `latest.json` | Release `latest.json` |
 | `CONTE_VERBOSE` | Muestra logs adicionales en `install.sh` si vale `true` | `false` |
 
-## Formato de `latest.json`
-
-Cada release publica incluye un archivo `latest.json` usado por los instaladores:
-
-```json
-{
-  "version": "vX.Y.Z",
-  "linux_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-linux-x64.tar.gz",
-  "linux_arm64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-linux-arm64.tar.gz",
-  "macos_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-macos-x64.tar.gz",
-  "macos_arm64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-macos-arm64.tar.gz",
-  "windows_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-windows-x64.zip",
-  "windows_installer_x64_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/conte-cli-installer-windows-x64.exe",
-  "checksums_url": "https://github.com/conte-martin/conte-cli-installer/releases/download/vX.Y.Z/checksums.txt"
-}
-```
-
-La URL `releases/latest/download/latest.json` apunta siempre a la ultima release publicada.
-
-## Publicacion de releases
-
-Las releases publicas de este repositorio se publican desde artifacts generados en el repositorio privado `conte-martin/conte-cli`.
-
-Flujo esperado:
-
-1. Se crea un tag `vX.Y.Z` en `conte-cli`.
-2. `conte-cli` genera los binarios por plataforma.
-3. Este repositorio recibe un `repository_dispatch` de tipo `publish-release` o se ejecuta manualmente el workflow `Publish Release`.
-4. El workflow descarga los artifacts privados usando el secreto `CONTE_CLI_TOKEN`.
-5. El workflow genera `checksums.txt` y `latest.json`.
-6. El workflow crea la release publica en `conte-cli-installer`.
-
-Secreto requerido en GitHub Actions:
-
-```text
-CONTE_CLI_TOKEN
-```
-
-El token debe tener permisos para leer releases y assets del repositorio privado `conte-martin/conte-cli`. No debe documentarse ni exponerse el valor real del token.
-
-Para tokens fine-grained, `CONTE_CLI_TOKEN` debe tener acceso al repositorio privado fuente `conte-martin/conte-cli` y permisos de lectura de contenido y metadata del repositorio. La release fuente de `conte-cli` debe existir como GitHub Release publicada antes de ejecutar el workflow de publicacion del instalador; no alcanza con que exista solo el tag de Git.
-
-Por defecto, el workflow usa la misma version para la release publica del instalador y para la release fuente de `conte-cli`. Si esas versiones difieren, usar el input manual `conte_cli_version` o enviar `conte_cli_version` en el payload de `repository_dispatch`; ese valor debe coincidir con un tag/release existente en `conte-martin/conte-cli`.
-
-## Pruebas
-
-El repositorio incluye smoke tests para `install.sh` y `uninstall.sh`:
-
-```bash
-bash tests/test_install.sh
-```
-
-Estas pruebas validan deteccion de sistema operativo, arquitectura, seleccion de metadata, parsing basico de JSON, checksums, resolucion de herramientas SHA256 y comportamiento de desinstalacion.
-
 ## Troubleshooting
 
 ### `conte` no se encuentra despues de instalar
