@@ -131,21 +131,21 @@ Si no hay commits versionables para el scope seleccionado, falla salvo que se us
 
 ## Artefactos Hosted De Release
 
-El repositorio core produce los artefactos de release y mantiene el contrato de metadata. El workflow por tag se ejecuta con `vX.Y.Z`, crea los artefactos de Linux, macOS, ZIP de Windows e instalador de Windows, genera `checksums.txt`, y escribe `latest.json` con SemVer sin prefijo y URLs publicas.
+La produccion de artefactos y el contrato de metadata son propiedad del repositorio privado `conte-martin/conte-cli`. Su workflow por tag se ejecuta con `vX.Y.Z`, construye los artefactos de plataforma, genera `checksums.txt` y produce `latest.json` con SemVer sin prefijo y URLs publicas de descarga.
 
-`latest.json` apunta a assets publicos en `conte-martin/conte-cli-installer` para que la instalacion sin token y `conte update` no requieran `GITHUB_TOKEN`.
+`conte-martin/conte-cli-installer` es el endpoint publico de distribucion. Recibe un evento `repository_dispatch` desde `conte-cli`, descarga los artefactos privados, verifica los checksums y publica el GitHub Release publico. El archivo `latest.json` de este release publico es el que resuelven por defecto `install.sh`, `install.ps1` y `conte update`.
 
-La publicacion hosted se divide entre el repositorio privado de codigo fuente y el repositorio publico de instaladores:
+Flujo completo de release:
 
 1. Pushear el tag `vX.Y.Z` a `conte-cli`.
 2. `conte-cli` construye artefactos y crea el GitHub Release privado.
 3. `conte-cli` dispara `repository_dispatch` en `conte-martin/conte-cli-installer` con event type `publish-release` usando `GITHUB_TOKEN`.
 4. `conte-cli-installer` descarga assets privados usando `CONTE_CLI_TOKEN`.
-5. `conte-cli-installer` crea el release publico con assets publicos y `latest.json`.
+5. `conte-cli-installer` crea el release publico con artefactos de plataforma, `checksums.txt` y `latest.json`.
 
 Secrets requeridos en GitHub Actions:
 
-- `conte-cli`: ningun secret custom de release; el workflow usa `GITHUB_TOKEN`
-- `conte-cli-installer`: `CONTE_CLI_TOKEN`
+- `conte-cli`: ningun secret custom; el workflow usa el `GITHUB_TOKEN` incorporado
+- `conte-cli-installer`: `CONTE_CLI_TOKEN` — debe tener acceso de lectura a los assets privados de `conte-martin/conte-cli`
 
-`CONTE_CLI_TOKEN` debe poder leer assets privados desde `conte-martin/conte-cli` y permitir que el workflow publico cree o actualice el release publico. El workflow privado no imprime valores de tokens.
+El workflow privado no imprime valores de tokens en los logs.

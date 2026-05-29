@@ -22,14 +22,10 @@ Conte stores repository choices in `.conte/config.json`.
 
 ```json
 {
+  "version": "0.1.0",
   "workflow": "kanban",
-  "version": {
-    "current": "0.1.0",
-    "breaking": false
-  },
   "git": {
     "mainBranch": "main",
-    "developBranch": null,
     "mapping": {
       "main": "main"
     }
@@ -38,17 +34,24 @@ Conte stores repository choices in `.conte/config.json`.
     "scopeRequired": true,
     "scopePattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
   },
-  "release": {
-    "command": "conte release create"
+  "breakingChange": {
+    "mode": "manual-command",
+    "nextBump": null
   },
   "hooks": {
     "enabled": true,
     "path": ".conte/hooks",
     "installed": ["commit-msg", "pre-push", "prepare-commit-msg", "pre-commit"],
     "tasks": []
+  },
+  "release": {
+    "tagPrefix": "v",
+    "changelogFile": "CHANGELOG.md"
   }
 }
 ```
+
+`breakingChange.nextBump` is `null` by default and becomes `"major"` after `conte semver breaking` is run.
 
 `conte init` creates `.conte/config.json` only. It does not create `.conte/conte.conf`.
 If a legacy `.conte/conte.conf` file already exists, Conte warns and continues without deleting or migrating it automatically.
@@ -58,11 +61,11 @@ If a legacy `.conte/conte.conf` file already exists, Conte warns and continues w
 Config stores:
 
 - selected workflow
-- current version
-- next-release major override
+- current project version (bare SemVer)
+- next-release major override (`breakingChange.nextBump`)
 - logical-to-real branch mapping
 - scope validation preference
-- release command name
+- release tag prefix and changelog file path
 - hook enforcement state
 - hook installation path
 - selected installed hooks
@@ -134,7 +137,7 @@ GitFlow example:
 
 ```json
 {
-  "workflow": "GitFlow",
+  "workflow": "gitflow",
   "git": {
     "mainBranch": "main",
     "developBranch": "develop",
@@ -153,7 +156,7 @@ Do not configure `branchLifecycle` or `mergeRules`; lifecycle and merge rules ar
 Workflow requirements:
 
 - `trunk`: mapped `main` plus `feature/*`, `feat/*`, `bugfix/*`, `fix/*`, `hotfix/*`, `chore/*`
-- `kanban`: same as `trunk` by default
+- `kanban`: same as `trunk` plus `release/*`
 - `gitflow`: mapped `main`, mapped `develop`, plus `feature/*`, `feat/*`, `bugfix/*`, `fix/*`, `release/*`, `hotfix/*`, `chore/*`
 
 `gitflow` requires `git.developBranch`.
@@ -167,32 +170,44 @@ The commit description is not constrained by casing; only the `type(scope): ` he
 
 ## Version Storage
 
-`version.current` stores bare SemVer only, and `breakingChange.nextBump` stores the next-release major override:
+The project version is stored as a bare SemVer string at the top level of the config:
 
 ```json
-"version": {
-  "current": "0.1.0",
-  "breaking": false
+"version": "0.1.0"
+```
+
+The next-release major override is stored separately:
+
+```json
+"breakingChange": {
+  "mode": "manual-command",
+  "nextBump": null
 }
 ```
 
-Git tags are derived from that value with a `v` prefix:
+`nextBump` is `null` by default. After `conte semver breaking` it is set to `"major"` and cleared after a successful `conte release create`.
+
+Git tags are derived from the version value with a `v` prefix:
 
 ```text
 v0.1.0
 ```
 
-Conte uses the latest release tag as the release baseline when one exists. If no release tag exists yet, it uses `version.current` as the baseline.
+Conte uses the latest release tag as the release baseline when one exists. If no release tag exists yet, it uses the stored version as the baseline.
 
-## Release Command
+## Release Settings
 
-The config stores the command name:
+The config stores the tag prefix and changelog file path:
 
 ```json
 "release": {
-  "command": "conte release create"
+  "tagPrefix": "v",
+  "changelogFile": "CHANGELOG.md"
 }
 ```
+
+`tagPrefix` is prepended to the bare SemVer to produce the Git tag (e.g. `v0.2.0`).
+`changelogFile` names the file written by `conte release create`.
 
 Conte does not store changelog text, branch regex, branch lifecycle rules, merge rules, commit regex, or SemVer bump rules in config. Those remain derived behavior.
 
@@ -270,3 +285,75 @@ Conte can also resolve subproject config from:
 ```
 
 When the current working directory is inside a configured subproject, Conte uses that config layer first.
+
+## Workspace Configuration
+
+Workspace mode enables monorepo support. It is activated by `conte init --workspace` and stored under the `workspace` key in `.conte/config.json`.
+
+```json
+{
+  "workspace": {
+    "enabled": true,
+    "releaseMode": "independent",
+    "scopePathValidation": "strict",
+    "sharedScopes": ["chore", "deps"],
+    "services": [
+      {
+        "name": "api",
+        "path": "services/api",
+        "scope": "api",
+        "version": "1.0.0",
+        "changelogFile": "services/api/CHANGELOG.md",
+        "tagPrefix": "api-v",
+        "releaseMode": "independent"
+      },
+      {
+        "name": "worker",
+        "path": "services/worker",
+        "scope": "worker",
+        "version": "0.3.1",
+        "changelogFile": "services/worker/CHANGELOG.md",
+        "tagPrefix": "worker-v",
+        "releaseMode": "independent"
+      }
+    ]
+  }
+}
+```
+
+Fields:
+
+- `enabled` — `true` when workspace mode is active
+- `releaseMode` — `"single"` (one shared release for the whole repository) or `"independent"` (each service releases independently)
+- `scopePathValidation` — `"off"` (disabled), `"warn"` (report mismatches), or `"strict"` (block commits whose scope does not match the file paths changed)
+- `sharedScopes` — list of commit scopes that are exempt from scope/path validation (e.g. `chore`, `deps`)
+- `services[]` — list of declared services
+
+Service fields:
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | yes | Unique service identifier; must match `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `path` | yes | Relative path to the service root inside the repository |
+| `scope` | yes | Conventional Commit scope assigned to this service; must match `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `version` | yes | Current service version; strict SemVer `X.Y.Z` |
+| `changelogFile` | recommended | Relative path to the service changelog; defaults to repository-level `CHANGELOG.md` when absent |
+| `tagPrefix` | recommended | Git tag prefix for service releases (e.g. `api-v` produces `api-v1.0.0`) |
+| `releaseMode` | optional | Per-service override for `releaseMode` |
+
+Rules:
+
+- service `name`, `path`, `scope`, and `tagPrefix` values must be unique across all declared services
+- `path` and `changelogFile` must be relative paths that do not escape the repository root
+- workspace configuration is repository-local and always written to `.conte/config.json`; it is not a global or layered concern
+- `conte workspace doctor` validates all of these constraints and reports `[ok]`, `[warn]`, or `[error]` per field
+
+Inspect workspace state:
+
+```bash
+conte workspace status
+conte workspace list
+conte workspace doctor
+conte service status <name>
+conte service doctor <name>
+```

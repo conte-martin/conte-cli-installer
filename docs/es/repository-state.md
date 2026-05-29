@@ -27,7 +27,7 @@ Comportamiento esperado:
 - `conte status` informa `Not initialized`
 - `conte doctor` informa que Conte no esta inicializado
 - `conte release create` falla porque falta la config local del repositorio
-- `conte uninstall` sale limpio e informa que el repositorio no esta inicializado
+- `conte remove` sale limpio e informa que el repositorio no esta inicializado
 
 ### Inicializado con hooks habilitados
 
@@ -51,7 +51,7 @@ Comportamiento esperado:
 - `conte status` informa alineacion de hooks y actividad de validacion de commits y ramas
 - `conte doctor` valida config, archivos de hooks, permisos de ejecucion, runtime, branch mapping, validez de rama actual y validez de commits para release
 - `conte release create` valida commits no-merge desde el ultimo tag antes de calcular la siguiente version
-- `conte uninstall` elimina archivos gestionados por Conte dentro de `<repo>/.conte`, preserva contenido no gestionado y limpia `core.hooksPath` solo cuando coincide con el path gestionado configurado
+- `conte remove` elimina archivos gestionados por Conte dentro de `<repo>/.conte`, preserva contenido no gestionado y limpia `core.hooksPath` solo cuando coincide con el path gestionado configurado
 
 ### Inicializado con hooks deshabilitados
 
@@ -68,7 +68,7 @@ Comportamiento esperado:
 - `conte status` informa que el repositorio esta inicializado con hooks deshabilitados
 - `conte doctor` advierte sobre la validacion local inactiva, pero esa advertencia sola no hace fallar el comando
 - `conte release create` igual valida commits no-merge desde el ultimo tag
-- `conte uninstall` elimina solo `<repo>/.conte`
+- `conte remove` elimina solo `<repo>/.conte`
 
 ### Roto o inconsistente
 
@@ -132,7 +132,7 @@ conte hooks reinstall --force
 - rechaza Conventional Commits no-merge invalidos desde el ultimo tag
 - ignora los subjects de merge commits porque la recoleccion usa `git log --no-merges`
 
-### `conte uninstall`
+### `conte remove`
 
 - lee `hooks.path` configurado antes de eliminar `<repo>/.conte`
 - limpia `core.hooksPath` solo cuando coincide con el path gestionado configurado

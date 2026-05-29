@@ -56,9 +56,17 @@ conte doctor
 
 ## Uninstall
 
-Uninstall Conte CLI from the Windows installed apps list.
+To uninstall Conte CLI, run:
 
-The uninstaller removes:
+```bash
+conte uninstall
+conte uninstall --yes
+```
 
-- the installed Conte CLI files under `%USERPROFILE%\.conte`
-- the `%USERPROFILE%\.conte\bin` user `PATH` entry
+`conte uninstall` removes `%USERPROFILE%\.conte` and attempts to remove `%USERPROFILE%\.conte\bin` from the User PATH. It also removes `conte.cmd` as part of the install root cleanup.
+
+Open a new terminal after uninstall for PATH and environment changes to take effect.
+
+`conte uninstall` does not remove repository-local `.conte` folders. Use `conte remove` inside a Git repository to remove repository-local Conte configuration.
+
+If you installed using the Windows installer, you can also uninstall from the Windows installed apps list. The GUI uninstaller removes the same files under `%USERPROFILE%\.conte`.
