@@ -46,11 +46,13 @@ conte doctor
 
 Open a new terminal first if your shell has not picked up the updated `PATH`.
 
-## Core Repository Responsibility
+## This Repository
 
-This repository remains the source of truth for CLI code, CLI versioning, packaging, release artifacts, self-update logic, and the `latest.json` metadata format.
+`conte-martin/conte-cli-installer` is the public distribution point for Conte CLI. It hosts tokenless install scripts and public release assets. No `GITHUB_TOKEN` is required for install or update.
 
-The public installer repository, `conte-martin/conte-cli-installer`, exposes tokenless install scripts and public release metadata/assets. Users must not need `GITHUB_TOKEN` for install or update.
+The CLI source code, versioning, packaging, and build artifacts originate from the private `conte-martin/conte-cli` repository. On each new release, `conte-cli` triggers a `repository_dispatch` event to this repository, which downloads the private build artifacts, verifies their checksums, and publishes them publicly alongside the `latest.json` metadata file.
+
+The `latest.json` contract and the self-update logic embedded in the CLI (`conte update`) are defined in `conte-cli`. This repository exposes the public endpoint that `conte update` resolves by default.
 
 ## Release Artifacts
 
@@ -93,9 +95,9 @@ The version value is bare SemVer without the leading `v`. `checksums_url` points
 
 ## Payload Installer Script
 
-The root `install.sh` in this repository is payload-based. It sources Conte libraries from an already unpacked CLI tree, so it is not the public curl-pipe installer.
+The CLI release tarball (`conte-cli-<platform>.tar.gz`) bundles its own `install.sh`. That script sources Conte libraries from the unpacked CLI tree and installs from local disk. It is not the public curl-pipe installer hosted in this repository.
 
-It remains useful inside a release payload:
+It is useful when installing offline from a downloaded artifact:
 
 ```bash
 ./install.sh
@@ -133,16 +135,18 @@ conte self update --version 1.2.3
 
 `conte update` and `conte self update` are equivalent. Both use the public metadata URL by default, preserve `CONTE_RELEASE_METADATA_URL`, do not require `GITHUB_TOKEN`, and do not mutate repository-local `.conte/config.json`.
 
-See [Usage](usage.md) for update behavior details.
+See [usage.md](usage.md) for update behavior details.
 
 ## Uninstalling the CLI
 
 ```bash
-conte self uninstall
-conte self uninstall --yes
+conte uninstall
+conte uninstall --yes
 ```
 
-`conte self uninstall` removes the global CLI installation directory (`$CONTE_HOME`). It does not affect repository-local `.conte` configuration. Use `conte uninstall` inside a repository to remove repository-local Conte configuration.
+`conte uninstall` removes the global CLI installation directory. It does not affect repository-local `.conte` configuration. Use `conte remove` inside a repository to remove repository-local Conte configuration.
+
+`conte self uninstall` is a deprecated alias for `conte uninstall` and will print a deprecation warning.
 
 ## Windows (Git Bash)
 

@@ -6,7 +6,7 @@ Conte separa la preparacion del repositorio de la gestion de hooks y el diagnost
 
 - **`conte init`** prepara el repositorio: crea `.conte/config.json`, selecciona el workflow y el mapeo de ramas, genera el commit template e instala hooks opcionalmente.
 - **`conte hooks install`** activa las validaciones Git de forma independiente a `init`.
-- **`conte doctor`** diagnostica el estado actual del repositorio y sugiere correcciones.
+- **`conte doctor`** diagnostica la preparacion de la CLI/runtime y del repositorio, y sugiere correcciones locales seguras.
 
 Regla interactiva: los comandos complejos sin argumentos pueden abrir menus solo en terminales interactivas. En CI o modo no interactivo no se muestran menus.
 
@@ -19,7 +19,7 @@ Comandos que pueden abrir menus en modo interactivo sin argumentos:
 
 Comandos siempre directos:
 
-- `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte self`.
+- `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte remove`, `conte self`.
 
 ## `conte help`
 
@@ -161,7 +161,7 @@ Notas:
 
 ## `conte uninstall`
 
-Elimina solo el estado local del repositorio gestionado por Conte.
+Desinstala la CLI de Conte de este sistema.
 
 Uso:
 
@@ -169,6 +169,37 @@ Uso:
 conte uninstall
 conte uninstall --yes
 conte uninstall -y
+```
+
+Opciones:
+
+- `-y`, `--yes`: desinstala sin confirmacion interactiva.
+- `-h`, `--help`: muestra ayuda.
+
+Comportamiento:
+
+- No requiere estar dentro de un repositorio Git.
+- Resuelve el directorio de instalacion desde `CONTE_INSTALL_ROOT`, luego `CONTE_HOME`, luego el valor por defecto de la plataforma (`~/.conte` en Linux/macOS, `%USERPROFILE%\.conte` en Windows).
+- Rechaza rutas de instalacion inseguras: directorio home, raiz del sistema de archivos, raiz de unidad, o directorio sin payload valido de Conte.
+- Elimina los archivos de instalacion de Conte CLI y limpia entradas de PATH y variables de entorno donde sea seguro identificarlas.
+- Nunca elimina directorios `.conte` locales de repositorios.
+
+Notas:
+
+- Para eliminar la configuracion local de Conte de un repositorio, usar `conte remove` dentro del repositorio.
+- Abrir una terminal nueva despues de desinstalar para que los cambios de PATH y variables de entorno sean visibles.
+- `conte self uninstall` es un alias obsoleto de `conte uninstall`.
+
+## `conte remove`
+
+Elimina solo el estado local del repositorio gestionado por Conte.
+
+Uso:
+
+```bash
+conte remove
+conte remove --yes
+conte remove -y
 ```
 
 Opciones:
@@ -182,7 +213,7 @@ Comportamiento:
 - Elimina solo paths gestionados por Conte bajo `<repo>/.conte`.
 - Preserva archivos no gestionados, `.git`, archivos fuente y la instalacion global.
 - Limpia `core.hooksPath` y `commit.template` solo cuando siguen apuntando a paths gestionados por Conte.
-- Para desinstalar la CLI global, usar `conte self uninstall`.
+- Para desinstalar la CLI global, usar `conte uninstall`.
 
 ## `conte semver`
 
@@ -258,7 +289,7 @@ Notas:
 
 ## `conte doctor`
 
-Ejecuta diagnosticos completos del repositorio.
+Ejecuta diagnosticos completos de la CLI/runtime de Conte y del repositorio.
 
 Uso:
 
@@ -269,13 +300,17 @@ conte doctor --fix
 
 Opciones:
 
-- `--fix`: aplica reparaciones seguras y deterministas.
+- `--fix`: aplica solo reparaciones seguras locales al repositorio.
 - `-h`, `--help`: muestra ayuda.
 
 Notas:
 
 - `conte doctor` no modifica archivos.
-- `conte doctor --fix` puede reinstalar hooks gestionados, configurar `core.hooksPath=.conte/hooks` y reinstalar el commit template gestionado.
+- `conte doctor` muestra secciones de CLI/runtime, separacion de comandos, diagnosticos del repositorio, hooks y config.
+- `conte doctor` separa `conte uninstall` como desinstalacion global/de sistema, `conte remove` como limpieza local del repositorio, y `conte self uninstall` como alias obsoleto.
+- `conte doctor --fix` puede reinstalar hooks gestionados, configurar `core.hooksPath=.conte/hooks`, actualizar estado local de hooks y reinstalar el commit template gestionado.
+- `conte doctor --fix` no desinstala la CLI global; usar `conte uninstall` para la desinstalacion global/de sistema.
+- `conte doctor --fix` no elimina estado local de Conte del repositorio; usar `conte remove` para limpieza local del repositorio.
 - No sobreescribe archivos no gestionados sin una ruta de reparacion explicita.
 
 ## `conte validate`
@@ -415,18 +450,15 @@ conte self version
 conte self update
 conte self update --check
 conte self update --version 1.2.3
-conte self uninstall
-conte self uninstall -y
-conte self uninstall --yes
 ```
 
 Subcomandos:
 
 - `version`: equivalente a `conte version`.
 - `update`: delega a `conte update` y acepta `--check` y `--version <x.y.z>`.
-- `uninstall`: elimina la instalacion global desde `$CONTE_HOME`.
+- `uninstall`: alias obsoleto de `conte uninstall`.
 
-`self version` y `self update --check` no modifican archivos. `self update` y `self uninstall` pueden modificar la instalacion global. `self uninstall` no afecta la configuracion local del repositorio.
+`self version` y `self update --check` no modifican archivos. `self update` puede modificar la instalacion global. `self uninstall` es un alias obsoleto; usar `conte uninstall` para desinstalar la CLI global. `conte uninstall` no afecta la configuracion local del repositorio. Usar `conte remove` dentro de un repositorio para quitar la configuracion local de Conte.
 
 ## `conte changelog`
 

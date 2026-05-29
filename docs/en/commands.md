@@ -4,7 +4,7 @@ Conte separates repository setup from hook management and diagnostics:
 
 - **`conte init`** — prepares the repository: creates `.conte/config.json`, selects the workflow and branch mapping, generates the commit template, and optionally installs hooks.
 - **`conte hooks install`** — activates Git hook validations independently of `init`. Use this to enable or repair hooks without running the full configuration wizard.
-- **`conte doctor`** — diagnoses the current repository state and suggests fixes.
+- **`conte doctor`** — diagnoses Conte CLI/runtime and repository readiness and suggests safe repository-local fixes.
 
 **Interactive menus rule:** menus resolve decisions; they do not hide commands. When a complex command is run in an interactive terminal without arguments, it opens a menu. When flags or subcommands are provided, the command runs directly. In CI or non-interactive environments, menus are never shown.
 
@@ -15,7 +15,7 @@ Commands that open menus in interactive mode (without arguments):
 - `conte release` — release management menu
 
 Commands that are always direct (never open menus):
-- `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte self`
+- `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte remove`, `conte self`
 
 ## `conte help`
 
@@ -103,7 +103,7 @@ Behavior:
 2. Warn if legacy `.conte/conte.conf` exists, but keep it untouched.
 3. If `.conte/config.json` already exists and `--force` is not set:
    - **Interactive**: show the current configuration and offer:
-     `View configuration`, `Reconfigure`, `Reinstall hooks`, `Exit`.
+     `View configuration`, `Reconfigure`, `Exit`.
      Choosing `Exit` returns code 0.
    - **Non-interactive**: print a notice and exit 0, unless Conte can safely upgrade a legacy config with no `hooks` section or repair a broken install where `hooks.enabled=true`.
 4. Run the wizard steps in order:
@@ -124,23 +124,23 @@ Expected output after successful initialization:
 ```
 Conte initialized successfully.
 
-Repository:
-  /path/to/repo
+Repository: /path/to/repo
 
-Workflow:
-  kanban
+Workflow: kanban
 
 Branches:
   main = main
 
-Hooks:
-  installed
+Hooks: installed
+  path: .conte/hooks
+Installed hooks:   commit-msg,pre-push,prepare-commit-msg,pre-commit
 
-Commit template:
-  configured
+Commit template: configured
 
 Diagnostics:
-  OK
+  Config: OK
+  Hooks: OK
+  Template: OK
 
 Next:
   conte status
@@ -149,10 +149,8 @@ Next:
 When hooks are skipped during `init`, the output shows:
 
 ```
-Hooks:
-  not installed
-
-  Run 'conte hooks install' to activate validations.
+Hooks: not installed
+  Run: conte hooks install
 ```
 
 Options:
@@ -239,7 +237,7 @@ Writable keys are limited to `workflow`, `version.current`, `version.breaking`, 
 
 ## `conte uninstall`
 
-Removes only Conte-managed repository-local state for the current Git repository.
+Uninstalls the global Conte CLI from this operating system.
 
 Usage:
 
@@ -247,6 +245,40 @@ Usage:
 conte uninstall
 conte uninstall --yes
 conte uninstall -y
+```
+
+Behavior:
+
+- does not require a Git repository
+- resolves the install root from `CONTE_INSTALL_ROOT`, then `CONTE_HOME`, then the platform default (`~/.conte` on Linux/macOS, `%USERPROFILE%\.conte` on Windows)
+- shows the uninstall plan and asks for confirmation by default
+- refuses unsafe install roots: home directory, filesystem root, drive root, or any directory without a valid Conte CLI payload (`bin/conte` or `bin/conte.cmd`)
+- removes Conte CLI installation files: `bin/conte`, `bin/conte.cmd`, `lib/`, `docs/`, `storage/`, `install.sh`, `README.md`, `LICENSE`, and `bin/`
+- removes the install root directory if it becomes empty after cleanup
+- removes Conte PATH entries from User PATH and shell profiles where safely identifiable
+- removes persistent Conte environment variables (`CONTE_HOME`, `CONTE_LIB`, `CONTE_STORAGE`, `CONTE_INSTALL_ROOT`) from shell profiles where safely identifiable
+- preserves ambiguous PATH or environment lines with a warning
+- never removes repository-local `.conte` directories, `.git`, source files, or unrelated directories
+- reports PATH and environment variable cleanup results in a structured `Environment cleanup:` section
+
+Notes:
+
+- if the install root has no Conte CLI payload, Conte reports `No global Conte installation found` and exits 0, still attempting PATH and environment cleanup
+- `CONTE_RELEASE_METADATA_URL` is only removed if it matches the default Conte metadata URL; custom values are preserved with a warning
+- to remove repository-local Conte configuration, use `conte remove` inside a repository
+- open a new terminal after uninstall for PATH and environment changes to take effect
+- `conte self uninstall` is a deprecated alias for `conte uninstall`
+
+## `conte remove`
+
+Removes only Conte-managed repository-local state for the current Git repository.
+
+Usage:
+
+```bash
+conte remove
+conte remove --yes
+conte remove -y
 ```
 
 Behavior:
@@ -268,8 +300,8 @@ Notes:
 
 - if the current repository has no `.conte` directory, Conte prints `Conte is not initialized in this repository.` and exits 0
 - if `.conte` still contains unmanaged content after managed cleanup, Conte keeps the directory and reports the remaining top-level entries
-- `conte uninstall` removes **repository-local** Conte configuration only; it does not uninstall the global CLI
-- to uninstall the global CLI, use `conte self uninstall`
+- `conte remove` removes **repository-local** Conte configuration only; it does not uninstall the global CLI
+- to uninstall the global CLI, use `conte uninstall`
 
 ## `conte semver`
 
@@ -334,7 +366,7 @@ conte generate cicd --provider azure
 ```
 
 The generated template always calls the CLI instead of re-implementing validation rules in the provider file.
-The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/test_install.sh` when present.
+The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/run.sh` when present.
 
 If no provider is supplied, interactive terminals prompt for one and non-interactive runs fall back to `github`.
 
@@ -378,11 +410,19 @@ For detailed diagnostics, run `conte doctor`.
 
 ## `conte doctor`
 
-Performs full diagnostics with grouped sections. Each check shows a status value: `ok`, `error`, `missing`, `disabled`.
+Performs full diagnostics for Conte CLI/runtime and repository readiness with grouped sections. Each check shows a status value: `ok`, `error`, `missing`, `disabled`.
 
 ```
 Conte doctor
 
+
+CLI
+
+  CONTE_HOME:                    ok
+  CONTE_LIB:                     ok
+  conte uninstall:               global/system uninstall
+  conte remove:                  repository-local cleanup
+  conte self uninstall:          deprecated alias
 
 Rules
 
@@ -423,8 +463,10 @@ Fix:
 `conte doctor --fix`:
 
 - Prints `Will fix:` with a summary of changes before applying them.
-- Applies only safe, deterministic repairs (reinstall Conte-managed hooks, set `core.hooksPath`).
+- Applies only safe repository-local repairs (reinstall Conte-managed hooks, set `core.hooksPath`, reinstall the Conte-managed commit template).
 - Prints `Rerunning diagnostics.` then reruns the full check on the repaired state.
+- Does not uninstall the global CLI; use `conte uninstall` for global/system uninstall.
+- Does not remove repository-local Conte state; use `conte remove` for repository-local cleanup.
 - Does not overwrite user-managed files without `--force`.
 
 Safe fixes applied by `--fix`:
@@ -442,6 +484,8 @@ Unsafe changes that require `--force` or manual action:
 
 `conte doctor` diagnoses:
 
+- CLI/runtime paths (`CONTE_HOME`, `CONTE_LIB`)
+- Command separation: `conte uninstall` is global/system uninstall, `conte remove` is repository-local cleanup, and `conte self uninstall` is a deprecated alias
 - Config presence and integrity
 - `breakingChange.mode` is `manual-command`
 - `breakingChange.nextBump` is `null` or `major`
@@ -507,6 +551,141 @@ Notes:
 - both `--source` and `--target` are required
 - `-s` and `-t` are short aliases for `--source` and `--target`
 - the command is non-interactive and does not modify repository state
+
+## `conte workspace`
+
+Inspects and diagnoses the workspace (monorepo) configuration. Requires workspace mode to be enabled via `conte init --workspace`.
+
+Usage:
+
+```bash
+conte workspace status
+conte workspace list
+conte workspace doctor
+```
+
+Subcommands:
+
+- `status` — prints a summary of workspace configuration: enabled state, release mode, scope/path validation setting, shared scope count, and service count. When the current directory maps to a declared service, it is identified in the output.
+- `list` — lists all declared services with their name, path, scope, and version. When no services are declared, suggests how to add them.
+- `doctor` — runs workspace-specific diagnostics. Validates `releaseMode`, `scopePathValidation`, and each service's `name`, `path`, `scope`, `version`, `tagPrefix`, and `changelogFile`. Checks for duplicate names, scopes, paths, and tag prefixes. Exits non-zero when errors are found.
+
+Expected output — `conte workspace status`:
+
+```
+Workspace Status
+
+  Enabled: yes
+  Release mode: independent
+  Scope/path validation: strict
+  Shared scopes: 1
+  Services: 2
+
+  Current directory maps to service: api
+```
+
+Expected output — `conte workspace list`:
+
+```
+Services
+
+  api                   path:services/api               scope:api            version:1.0.0
+  worker                path:services/worker            scope:worker         version:0.3.1
+```
+
+Expected output — `conte workspace doctor`:
+
+```
+Workspace Doctor
+
+  releaseMode: independent [ok]
+  scopePathValidation: strict [ok]
+
+  Service: api
+    name: [ok]
+    path: services/api [ok]
+    scope: api [ok]
+    version: 1.0.0 [ok]
+    tagPrefix: api-v [ok]
+    changelogFile: services/api/CHANGELOG.md [ok]
+
+  Service: worker
+    name: [ok]
+    ...
+
+Workspace OK.
+```
+
+Diagnostics report each field with `[ok]`, `[warn]`, or `[error]`. Errors exit non-zero. Warnings do not exit non-zero.
+
+Notes:
+
+- workspace mode must be enabled in `.conte/config.json`; if not, the command exits with an error and suggests `conte init --workspace`
+- `conte workspace doctor` does not repair state; use `conte doctor --fix` for general repairs
+- for per-service diagnostics, use `conte service doctor <name>`
+
+## `conte service`
+
+Inspects and diagnoses individual services declared in the workspace configuration. Requires workspace mode to be enabled.
+
+Usage:
+
+```bash
+conte service list
+conte service status <name>
+conte service doctor <name>
+```
+
+Subcommands:
+
+- `list` — prints a tabular summary of all declared services (name, path, scope, version). Equivalent to `conte workspace list` but scoped to service-level output.
+- `status <name>` — prints detailed configuration for a named service: path, scope, version, tag prefix, release mode, and changelog file. When the current directory is inside the service's path, it is noted in the output.
+- `doctor <name>` — runs diagnostics for a single named service. Validates each field and exits non-zero when errors are found.
+
+Expected output — `conte service status api`:
+
+```
+Service: api
+
+  Path:          services/api
+  Scope:         api
+  Version:       1.0.0
+  Tag prefix:    api-v
+  Release mode:  independent
+  Changelog:     services/api/CHANGELOG.md
+
+  (current directory is inside this service)
+```
+
+Expected output — `conte service doctor api`:
+
+```
+Service Doctor: api
+
+  name: [ok]
+  path: services/api [ok]
+  scope: api [ok]
+  version: 1.0.0 [ok]
+  tagPrefix: api-v [ok]
+  changelogFile: services/api/CHANGELOG.md [ok]
+
+Service OK.
+```
+
+Diagnostics:
+
+- `name` — must match `^[a-z0-9]+(-[a-z0-9]+)*$`
+- `path` — must be a relative path inside the repository (no leading `/`, no `..` escaping the root)
+- `scope` — must match `^[a-z0-9]+(-[a-z0-9]+)*$`
+- `version` — must be strict SemVer `X.Y.Z`
+- `tagPrefix` — optional; warns when missing
+- `changelogFile` — optional; warns when missing; must be a relative path inside the repository when set
+
+Notes:
+
+- `<name>` must match a service declared in `.conte/config.json` under `workspace.services[]`; unknown names exit with an error
+- `conte service doctor` checks one service at a time; use `conte workspace doctor` to check all services at once
+- neither subcommand modifies repository state
 
 ## `conte hooks`
 
@@ -634,24 +813,21 @@ conte self version
 conte self update
 conte self update --check
 conte self update --version 1.2.3
-conte self uninstall
-conte self uninstall -y
-conte self uninstall --yes
 ```
 
 Subcommands:
 
 - `version` — show CLI version information (same as `conte version`)
 - `update` — update the installed Conte CLI (same as `conte update`; accepts `--check` and `--version <x.y.z>`)
-- `uninstall` — uninstall the global Conte CLI from `$CONTE_HOME`
+- `uninstall` — **deprecated** alias for `conte uninstall`
 
 Notes:
 
-- `conte self uninstall` removes the global CLI installation directory (`$CONTE_HOME`).
-  It does **not** affect repository-local `.conte` configuration.
-- Use `conte uninstall` (inside a repository) to remove repository-local Conte configuration.
-- `conte self uninstall` will prompt for confirmation unless `--yes` is passed.
-- After running `conte self uninstall`, remove `$CONTE_HOME/bin` from your `PATH`.
+- `conte self version` and `conte self update --check` do not modify files.
+- `conte self update` downloads and installs a newer CLI version.
+- `conte self uninstall` is a deprecated alias. Use `conte uninstall` to uninstall the global CLI.
+- Use `conte remove` (inside a repository) to remove repository-local Conte configuration.
+- After running `conte uninstall`, remove `$CONTE_HOME/bin` from your `PATH`.
 
 ## `conte changelog`
 

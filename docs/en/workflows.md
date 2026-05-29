@@ -65,7 +65,7 @@ Release behavior:
 
 - `conte release create` may run from the mapped `main` branch
 - Kanban allows `release/*` branches
-- scoped release branches with `--scope` are not supported unless a future explicit config option adds them
+- scoped release branches with `--scope` are not supported
 
 ## GitFlow
 

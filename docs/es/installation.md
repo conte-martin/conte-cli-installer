@@ -36,7 +36,7 @@ conte doctor
 
 `conte update` usa por defecto `https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json`, verifica SHA256 con `checksums.txt`, y permite override con `CONTE_RELEASE_METADATA_URL`.
 
-El `install.sh` de la raiz de este repositorio es interno al payload: requiere que `lib/` ya exista y no debe documentarse como script curl-pipe publico.
+Los scripts `install.sh`, `install.ps1` e `install.cmd` en la raiz de este repositorio son los instaladores publicos curl-pipe. El tarball de release de Conte CLI incluye su propio `install.sh` interno que opera desde el arbol descomprimido, util para instalaciones offline desde un artefacto descargado.
 
 ## Windows (Git Bash)
 
