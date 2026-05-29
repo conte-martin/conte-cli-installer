@@ -1,5 +1,7 @@
 # Architecture
 
+This document describes the internal architecture of Conte CLI — the tool installed by this repository's scripts. The source code lives in `conte-martin/conte-cli`. The installer (`conte-martin/conte-cli-installer`) is only responsible for public distribution and does not contain CLI logic.
+
 ## Phase 6 Model
 
 Conte CLI operates as a workflow-driven validation, release, CI/CD, Hook Tasks, and distribution platform.
@@ -45,7 +47,6 @@ lib/core/
     engine.sh
   workflow-engine/
     catalog.sh
-    lifecycle.sh
 ```
 
 ## Workflow Engine
@@ -156,7 +157,7 @@ Each template is workflow-aware and provider-aware, but intentionally thin in lo
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
-- `bash tests/test_install.sh` when present
+- `bash tests/run.sh` when present
 
 That keeps branch validation, commit validation, config validation, and release validation inside one codebase.
 
@@ -246,6 +247,33 @@ Each task has a name, target hook, command, and enabled flag.
 
 The runner executes enabled tasks after Conte's core hook validation succeeds. Manual tasks never run from Git hooks; users run them with `conte hooks task run <name>`.
 
+## Workspace Mode
+
+Workspace mode extends Conte to monorepos by declaring multiple services inside a single repository. The feature is governed by `lib/core/workspace.sh` and `lib/core/config/store.sh`.
+
+Design invariants:
+
+- workspace configuration lives exclusively in `.conte/config.json` under the `workspace` key
+- service detection uses a longest-prefix path match against `workspace.services[].path` values from the current working directory
+- the workflow engine, validation engine, release engine, and hooks all remain service-unaware; workspace logic is handled in the command layer before those engines are called
+- `scope/path validation` is a workspace-level policy and does not affect non-workspace repositories
+
+Service detection flow:
+
+```text
+cwd
+  -> workspace.sh::conte::workspace_detect_service_by_path()
+  -> longest-prefix match against services[].path
+  -> returns service name or empty string
+```
+
+Release in workspace mode:
+
+- `releaseMode: single` — one shared version and changelog for the repository; `conte release create` behaves identically to non-workspace mode
+- `releaseMode: independent` — each service has its own version, changelog, and tag; `conte release create --service <name>` scopes the release to that service's commits using its declared scope
+
+`conte workspace doctor` and `conte service doctor` validate service configuration without modifying repository state. They are diagnostic-only commands.
+
 ## Config Resolution
 
 Conte resolves configuration in layers:
@@ -291,7 +319,7 @@ The distribution model remains intentionally lightweight: the CLI is Bash-first,
 }
 ```
 
-The default metadata URL is resolved from `CONTE_RELEASE_METADATA_URL` if set, otherwise from `https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json`. The core repository still owns the CLI code, packaging, release artifacts, update logic, and metadata contract; the public installer repository exposes tokenless install scripts and public release metadata/assets.
+The default metadata URL is resolved from `CONTE_RELEASE_METADATA_URL` if set, otherwise from `https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json`. The `latest.json` file is published by this installer repository (`conte-martin/conte-cli-installer`). The CLI source, packaging, release artifact builds, update logic, and metadata contract are owned by `conte-martin/conte-cli`; this repository is responsible for making those artifacts publicly accessible without requiring a `GITHUB_TOKEN`.
 
 ## Telemetry Design
 

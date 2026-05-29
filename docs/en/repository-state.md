@@ -27,7 +27,7 @@ Expected behavior:
 - `conte status` reports `Not initialized`
 - `conte doctor` reports that Conte is not initialized
 - `conte release create` fails because repository-local Conte config is missing
-- `conte uninstall` exits cleanly and reports that the repository is not initialized
+- `conte remove` exits cleanly and reports that the repository is not initialized
 
 ### Initialized with hooks enabled
 
@@ -51,7 +51,7 @@ Expected behavior:
 - `conte status` reports hook path alignment plus commit and branch validation activity
 - `conte doctor` validates config, hook files, hook executability, hook runtime, branch mapping, workflow branch validity, and release commit validity
 - `conte release create` validates non-merge commits since the last tag before calculating the next version
-- `conte uninstall` removes Conte-managed files under `<repo>/.conte`, preserves unmanaged content, and unsets `core.hooksPath` only when that value matches the configured managed hooks path
+- `conte remove` removes Conte-managed files under `<repo>/.conte`, preserves unmanaged content, and unsets `core.hooksPath` only when that value matches the configured managed hooks path
 
 ### Initialized with hooks disabled
 
@@ -68,7 +68,7 @@ Expected behavior:
 - `conte status` reports the repository as initialized with hooks disabled
 - `conte doctor` warns about inactive local validation, but this warning alone does not fail the command
 - `conte release create` still validates non-merge commits since the last tag
-- `conte uninstall` removes only `<repo>/.conte`
+- `conte remove` removes only `<repo>/.conte`
 
 ### Broken or inconsistent
 
@@ -133,7 +133,7 @@ conte hooks reinstall --force
 - rejects invalid non-merge Conventional Commits since the last tag
 - ignores merge commit subjects because release collection uses `git log --no-merges`
 
-### `conte uninstall`
+### `conte remove`
 
 - reads the configured `hooks.path` before deleting `<repo>/.conte`
 - unsets `core.hooksPath` only when it matches the configured managed path

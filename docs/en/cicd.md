@@ -44,7 +44,7 @@ All generated templates run the CLI instead of duplicating validation rules:
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
-- `bash tests/test_install.sh` when present
+- `bash tests/run.sh` when present
 
 That means pipelines fail on:
 
@@ -63,32 +63,35 @@ Release job behavior is derived from the workflow engine:
 
 Validation triggers include the branch families allowed by the workflow, while release jobs are narrowed to release-eligible branches only.
 
-## Conte CLI Repository Workflows
+## Installer Repository Workflow
 
-The `conte-martin/conte-cli` repository uses separate GitHub Actions workflows by responsibility:
+This repository (`conte-martin/conte-cli-installer`) contains a single workflow: `publish-release.yml`.
 
-- `feature/*`, `bugfix/*`, `fix/*`, `chore/*`, and `hotfix/*` branches open PRs into `develop`.
-- `pr-validation.yml` validates PRs targeting `develop` with syntax, fast tests, smoke integration, and conditional release or Windows-sensitive tests.
-- `develop-integration.yml` runs full integration groups after a push lands in `develop`.
-- `develop` opens PRs into `main`.
-- `main-gate.yml` fails unless the PR source branch is exactly `develop`, then runs release-candidate Linux validation and a Windows package dry run.
-- `main-smoke.yml` runs light validation after a push lands in `main`.
-- In `conte-cli`, `release-from-tag.yml` is the only workflow that creates source CLI releases, and it runs only for tags matching `vX.Y.Z`.
-- In this installer repository, `.github/workflows/publish-release.yml` republishes those assets as public releases.
+It is triggered exclusively by a `repository_dispatch` event of type `publish-release` sent by `conte-martin/conte-cli` after a successful private release build.
 
-The release path is:
+Workflow responsibilities:
+
+- receives the `repository_dispatch` payload with the target version and private artifact URLs
+- downloads private build artifacts from `conte-martin/conte-cli` using `CONTE_CLI_TOKEN`
+- verifies SHA256 checksums for every artifact before publishing
+- creates or updates the public GitHub Release with platform-specific artifacts, `checksums.txt`, and `latest.json`
+- `latest.json` points to the public asset URLs so that `install.sh`, `install.ps1`, and `conte update` can resolve artifacts without a `GITHUB_TOKEN`
+
+The end-to-end release path is:
 
 ```text
-feature/*, bugfix/*, fix/*, chore/*, hotfix/* -> PR -> develop
-develop -> PR -> main
-main -> tag vX.Y.Z
-tag vX.Y.Z -> private release in conte-cli
-private release -> repository_dispatch -> public release in conte-cli-installer
+tag vX.Y.Z on conte-cli
+  -> private release build (conte-cli)
+  -> repository_dispatch to conte-cli-installer
+  -> publish-release.yml downloads, verifies, and publishes public release
+  -> latest.json available at the default CONTE_RELEASE_METADATA_URL
 ```
 
-Release tags must point to commits reachable from `origin/main`.
+Required secrets:
 
-The private `conte-cli` release workflow uses `GITHUB_TOKEN` for the private GitHub Release and for the public `repository_dispatch` call. The public `conte-cli-installer` workflow requires `CONTE_CLI_TOKEN` to download private assets and publish the public release. Do not print token values in workflow logs.
+- `conte-cli-installer`: `CONTE_CLI_TOKEN` — must have read access to private release assets on `conte-martin/conte-cli`.
+
+Do not print token values in workflow logs.
 
 ## Release Automation
 
