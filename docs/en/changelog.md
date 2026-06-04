@@ -63,3 +63,72 @@ If changelog composition or write fails, the release aborts and restores config 
 - `conte release create --no-changelog` skips the file update entirely
 - invalid commits abort the release instead of being silently omitted
 - PR titles and merge messages are never used as changelog input
+
+## Workspace / Monorepo service releases
+
+In workspace service release mode, each service has its own changelog:
+
+```text
+services/orders-api/CHANGELOG.md
+services/billing-api/CHANGELOG.md
+```
+
+The commit scope remains ticket, story, issue, or short functional context. It is not the service name. Conte detects the service from changed file paths and includes only commits that affect that service.
+
+Recommended commit:
+
+```text
+feat(us-12): agregar confirmación de pedido
+```
+
+Not recommended:
+
+```text
+feat(orders-api): agregar confirmación de pedido
+```
+
+Recommended service changelog format:
+
+```md
+# orders-api Changelog
+
+## orders-api@1.4.0
+
+### Features
+
+#### us-12
+- agregar confirmación de pedido
+
+### Fixes
+
+#### issue-89
+- corregir validación de saldo
+```
+
+Grouping is `type -> scope -> description`.
+
+Default included release types:
+
+```text
+feat
+fix
+perf
+breaking
+```
+
+Breaking entries are controlled by Conte's breaking-release workflow. Free-form breaking commits are not accepted for service releases.
+
+Optional changelog types depending on configuration and release options:
+
+```text
+docs
+build
+ci
+chore
+refactor
+test
+style
+revert
+```
+
+Commits that do not affect the service are not included in that service changelog. For service tags, Conte uses the configured service `tagPrefix`, for example `orders-api@` resolves the last `orders-api@X.Y.Z` tag and writes the next `orders-api@1.4.0` section.

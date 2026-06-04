@@ -135,6 +135,8 @@ conte validate commit --file .git/COMMIT_EDITMSG
 conte validate branch feat/add-login
 conte validate branch
 conte validate repo
+conte validate workspace
+conte validate workspace --range main..HEAD
 conte validate scope-paths
 conte workflow validate-merge --source feature/login --target develop
 ```
@@ -151,10 +153,14 @@ conte changelog generate
 conte release preview
 conte release preview --scope us-12
 conte release preview --service api
+conte release preview --all-services
 conte release create
 conte release create --allow-empty-release
 conte release create --scope us-12 --scope-mode strict
 conte release create --service api
+conte release create --all-services
+conte release create --all-services --global
+conte release create --all-services -g
 conte release create --include-internal
 conte release create --no-tag
 conte release create --no-changelog
@@ -301,6 +307,7 @@ Conte restores config and changelog state if a later release step fails — part
 ```bash
 conte release create --scope us-12       # ticket-based release
 conte release create --service api       # workspace service release
+conte release create --all-services --global  # recommended workspace batch release
 ```
 
 `--scope us-12` matches `feat(us-12): ...` exactly; it does not match `us-123` or `core-us-12`. Scoped release branches (`release/<scope>`) are supported for `gitflow` only.
@@ -308,6 +315,22 @@ conte release create --service api       # workspace service release
 **`--no-tag`:** when used, the Conte release commit (`chore(release): cut vX.Y.Z`) becomes the durable release marker. Re-running with no new versionable commits exits safely without creating duplicate artifacts.
 
 **`--allow-empty-release`:** forces a patch release when commits are valid but non-versionable.
+
+**Workspace service batches** use `releaseMode: service` and path-based service detection. `conte release preview --all-services` shows every service with releasable changes and writes nothing. `conte release create --all-services` creates one release commit per changed service; `conte release create --all-services --global` or `-g` creates one global release commit and tags each changed service, which is recommended to reduce release commit noise.
+
+## Workspace / Monorepo service releases
+
+Conte can release services independently in a monorepo. Commit scopes remain short and represent tickets or stories, while the service is detected from changed file paths.
+
+```text
+Branch: feature/us-12-confirm-order
+Commit: feat(us-12): agregar confirmación de pedido
+Files: services/orders-api/src/ConfirmOrder.cs
+Command: conte release preview --service orders-api
+Tag: orders-api@1.4.0
+```
+
+See [Workspace / Monorepo service releases](docs/en/workspace.md) for configuration, validation, service tags, service changelogs, `multiServicePolicy`, and `sharedScopes`.
 
 ## Hook Tasks
 
@@ -330,6 +353,8 @@ Workspace mode enables per-service versioning and scope/path validation within a
 
 ```bash
 conte init --workspace
+conte init --workspace --release-mode service --service orders-api --service-path services/orders-api
+conte workspace add-service billing-api --path services/billing-api
 ```
 
 This extends `.conte/config.json` with a `workspace` block:
@@ -338,37 +363,45 @@ This extends `.conte/config.json` with a `workspace` block:
 {
   "workspace": {
     "enabled": true,
-    "releaseMode": "independent",
-    "scopePathValidation": "strict",
-    "sharedScopes": ["chore", "deps"],
+    "releaseMode": "service",
+    "serviceDetection": "path",
+    "scopeMeaning": "ticket",
+    "multiServicePolicy": "fail",
+    "scopePathValidation": true,
+    "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
-        "name": "api",
-        "path": "services/api",
-        "scope": "api",
-        "version": "1.0.0",
-        "changelogFile": "services/api/CHANGELOG.md",
-        "tagPrefix": "api-v"
+        "name": "orders-api",
+        "path": "services/orders-api",
+        "tagPrefix": "orders-api@",
+        "changelogFile": "services/orders-api/CHANGELOG.md",
+        "version": "0.1.0"
       }
     ]
   }
 }
 ```
 
+Workspace setup is opt-in. Pressing Enter at `Enable workspace/monorepo support? [y/N]` leaves existing repository initialization unchanged. Service detection currently supports `path` only, and service release mode requires at least one configured service. Conventional Commit scope remains ticket/story/issue context; it is not the service name.
+
 Release modes:
 
-- `single` — one shared version and changelog for the whole repository
-- `independent` — each service releases independently via `conte release create --service <name>`
+- `repository` — one shared version and changelog for the whole repository
+- `service` — each service releases from path-detected changes via `conte release create --service <name>` or `conte release create --all-services --global`
 
 Inspect workspace state:
 
 ```bash
+conte status
+conte doctor
 conte workspace status
 conte workspace list
 conte workspace doctor
 conte service status api
 conte service doctor api
 ```
+
+`conte status` reports `Workspace: disabled` when workspace config is absent or disabled. When workspace mode is enabled, it shows release mode, service detection, service count, and each service's name/path/version. `conte doctor` treats missing workspace config as disabled, not as an error; when enabled, it validates service paths, tag prefixes, changelog paths, multi-service policy, and shared scopes.
 
 ## Config Resolution
 
@@ -404,8 +437,11 @@ Each generated template runs:
 bash ./bin/conte status
 bash ./bin/conte doctor
 bash ./bin/conte release preview
+bash ./bin/conte validate workspace
 bash tests/run.sh    # when present
 ```
+
+Workspace CI/CD should also run `conte release preview --all-services` when `workspace.enabled=true` and `workspace.releaseMode=service`. The Conte CLI repository uses `scripts/ci/workspace-validation.sh` for this conditional check.
 
 Release jobs are workflow-aware: `trunk` and `kanban` release from mapped `main`; `gitflow` releases from mapped `develop`.
 
@@ -467,17 +503,19 @@ Default install root: `~/.conte` on Linux/macOS, `%USERPROFILE%\.conte` on Windo
 
 | Document | Description |
 |---|---|
-| [Architecture](en/architecture.md) | Module design, engines, and invariants |
-| [Workflows](en/workflows.md) | Branch rules, commit rules, GitFlow merge validation |
-| [Configuration](en/configuration.md) | Config schema, resolution order, workspace config |
-| [Commands](en/commands.md) | Full command reference with options and examples |
-| [Release](en/release.md) | Release flow, scoped releases, service releases, rollback |
-| [CI/CD](en/cicd.md) | Generated pipeline templates and enforcement model |
-| [Changelog](en/changelog.md) | Changelog generation rules |
-| [Repository State](en/repository-state.md) | Valid and invalid repository states |
-| [Usage](en/usage.md) | Common usage patterns |
-| [Installation](en/installation.md) | Installation instructions |
-| [Windows Installation](installation/windows.md) | Windows-specific setup guide |
+| [Architecture](docs/en/architecture.md) | Module design, engines, and invariants |
+| [Workflows](docs/en/workflows.md) | Branch rules, commit rules, GitFlow merge validation |
+| [Configuration](docs/en/configuration.md) | Config schema, resolution order, workspace config |
+| [Commands](docs/en/commands.md) | Full command reference with options and examples |
+| [Release](docs/en/release.md) | Release flow, scoped releases, service releases, rollback |
+| [Workspace](docs/en/workspace.md) | Workspace and monorepo service release guide |
+| [Workspace ES](docs/es/workspace.md) | Resumen en español de releases de servicios en monorepo |
+| [CI/CD](docs/en/cicd.md) | Generated pipeline templates and enforcement model |
+| [Changelog](docs/en/changelog.md) | Changelog generation rules |
+| [Repository State](docs/en/repository-state.md) | Valid and invalid repository states |
+| [Usage](docs/en/usage.md) | Common usage patterns |
+| [Installation](docs/en/installation.md) | Installation instructions |
+| [Windows Installation](docs/installation/windows.md) | Windows-specific setup guide |
 
 ## Testing
 

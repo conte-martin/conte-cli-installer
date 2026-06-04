@@ -14,11 +14,11 @@ Supported options:
 conte release preview [--allow-empty-release] [--scope <scope>] [-s <scope>]
                       [--scope-mode <full|strict>] [-m <full|strict>]
                       [--include-internal] [--no-tag] [--no-changelog]
-                      [--service <name>]
+                      [--service <name>] [--all-services]
 conte release create  [--allow-empty-release] [--scope <scope>] [-s <scope>]
                       [--scope-mode <full|strict>] [-m <full|strict>]
                       [--include-internal] [--no-tag] [--no-changelog]
-                      [--service <name>]
+                      [--service <name>] [--all-services] [--global|-g]
 conte release sync-develop [--preview]
 ```
 
@@ -161,30 +161,43 @@ If no release tag exists yet, Conte uses `version.current` as the release baseli
 
 ## Service Releases
 
-In workspace mode with `releaseMode: independent`, each service releases independently using its declared commit scope.
+In workspace mode with `releaseMode: service`, each service releases independently using commits that touch its declared service path. Conventional Commit scope remains mandatory, but it represents ticket/story/issue context rather than the service name.
 
 Usage:
 
 ```bash
 conte release preview --service <name>
 conte release create --service <name>
+conte release preview --all-services
+conte release create --all-services
+conte release create --all-services --global
+conte release create --all-services -g
 ```
 
 Behavior:
 
 1. resolves the named service from `workspace.services[]` in `.conte/config.json`
-2. uses the service's `scope` field as the commit filter (equivalent to `--scope <service.scope>`)
+2. detects service commits from files under the service `path`
 3. reads commits since the last tag matching the service's `tagPrefix` pattern
 4. calculates the next version for that service
 5. writes the service changelog to `changelogFile` when configured
 6. creates a tag using the service `tagPrefix` (e.g. `api-v1.2.0`)
 7. updates the service `version` field in `.conte/config.json`
 
+All-services release:
+
+- `conte release preview --all-services` prints every workspace service with releasable changes and writes nothing
+- `conte release create --all-services` creates one release commit per changed service, such as `chore(release): orders-api 1.4.0`
+- `conte release create --all-services --global` creates one global release commit, `chore(release): publish workspace services`, then creates one tag per changed service pointing to that commit
+- `--global` is recommended for workspaces that want less release commit noise
+
 Notes:
 
-- `--service <name>` and `--scope <scope>` are mutually exclusive; `--service` derives the scope from the service declaration
+- `--service <name>` and `--all-services` are mutually exclusive
+- `--global` can only be used with `conte release create --all-services`
 - workspace mode must be enabled and the named service must be declared; unknown service names exit with an error
 - `conte release preview --service <name>` is always safe; it never writes files or tags
+- `conte release preview --all-services` is always safe; it never writes files, commits, or tags
 - service releases respect all standard release options: `--allow-empty-release`, `--no-tag`, `--no-changelog`, `--include-internal`
 - for `releaseMode: single`, omit `--service`; the release uses the shared repository version and changelog
 
@@ -206,21 +219,21 @@ The generated release jobs rely on `conte release create` to write the release s
 
 ## Hosted Release Artifacts
 
-Release artifact production is owned by the private `conte-martin/conte-cli` repository. Its tag workflow runs on `vX.Y.Z`, builds platform artifacts, generates `checksums.txt`, and produces `latest.json` with bare SemVer and public download URLs.
+The core repository owns release artifact production and the release metadata contract. The tag workflow runs on `vX.Y.Z`, builds the Linux, macOS, Windows ZIP, and Windows installer artifacts, generates `checksums.txt`, and writes `latest.json` with bare SemVer and public download URLs.
 
-`conte-martin/conte-cli-installer` is the public distribution endpoint. It receives a `repository_dispatch` event from `conte-cli`, downloads the private artifacts, verifies checksums, and publishes the public GitHub Release. `latest.json` in this public release is the file that `install.sh`, `install.ps1`, and `conte update` resolve by default.
+`latest.json` points at public assets in `conte-martin/conte-cli-installer` so tokenless install and `conte update` do not require `GITHUB_TOKEN`.
 
-End-to-end release flow:
+Hosted release publishing is split between the private source repository and the public installer repository:
 
 1. Push tag `vX.Y.Z` to `conte-cli`.
 2. `conte-cli` builds artifacts and creates the private GitHub Release.
 3. `conte-cli` triggers `repository_dispatch` on `conte-martin/conte-cli-installer` with event type `publish-release` using `GITHUB_TOKEN`.
 4. `conte-cli-installer` downloads private assets using `CONTE_CLI_TOKEN`.
-5. `conte-cli-installer` creates the public release with platform artifacts, `checksums.txt`, and `latest.json`.
+5. `conte-cli-installer` creates the public release with public assets and `latest.json`.
 
 Required GitHub Actions secrets:
 
-- `conte-cli`: no custom secret; uses the built-in `GITHUB_TOKEN`
-- `conte-cli-installer`: `CONTE_CLI_TOKEN` — must have read access to private release assets on `conte-martin/conte-cli`
+- `conte-cli`: no custom release secret; the workflow uses `GITHUB_TOKEN`
+- `conte-cli-installer`: `CONTE_CLI_TOKEN`
 
-The private workflow does not print token values in logs.
+`CONTE_CLI_TOKEN` must be able to read private release assets from `conte-martin/conte-cli` and allow the public workflow to create or update the public release. The private workflow does not print token values.

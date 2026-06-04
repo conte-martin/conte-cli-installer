@@ -6,6 +6,8 @@
 conte release preview
 conte release create
 conte release create --scope us-12
+conte release preview --all-services
+conte release create --all-services --global
 ```
 
 ## Modelo De Comandos
@@ -129,23 +131,42 @@ Si no hay commits versionables para el scope seleccionado, falla salvo que se us
 - los tags Git usan `vX.Y.Z`
 - si todavia no existe un tag de release, Conte usa `version.current` como baseline
 
+## Releases De Servicios
+
+En workspace mode con `releaseMode: service`, cada servicio se calcula desde los commits que tocan su `path`. El scope del Conventional Commit sigue siendo obligatorio, pero representa ticket, historia, issue o contexto corto; no representa el nombre del servicio.
+
+Comandos:
+
+```bash
+conte release preview --service <name>
+conte release create --service <name>
+conte release preview --all-services
+conte release create --all-services
+conte release create --all-services --global
+conte release create --all-services -g
+```
+
+`conte release preview --all-services` muestra todos los servicios con cambios releaseables y no escribe archivos. `conte release create --all-services` crea un commit por servicio cambiado. `conte release create --all-services --global` es el modo recomendado para reducir ruido: crea un unico commit `chore(release): publish workspace services` y un tag por servicio cambiado.
+
+`--service` y `--all-services` son mutuamente excluyentes. `--global` solo aplica a `conte release create --all-services`.
+
 ## Artefactos Hosted De Release
 
-La produccion de artefactos y el contrato de metadata son propiedad del repositorio privado `conte-martin/conte-cli`. Su workflow por tag se ejecuta con `vX.Y.Z`, construye los artefactos de plataforma, genera `checksums.txt` y produce `latest.json` con SemVer sin prefijo y URLs publicas de descarga.
+El repositorio core produce los artefactos de release y mantiene el contrato de metadata. El workflow por tag se ejecuta con `vX.Y.Z`, crea los artefactos de Linux, macOS, ZIP de Windows e instalador de Windows, genera `checksums.txt`, y escribe `latest.json` con SemVer sin prefijo y URLs publicas.
 
-`conte-martin/conte-cli-installer` es el endpoint publico de distribucion. Recibe un evento `repository_dispatch` desde `conte-cli`, descarga los artefactos privados, verifica los checksums y publica el GitHub Release publico. El archivo `latest.json` de este release publico es el que resuelven por defecto `install.sh`, `install.ps1` y `conte update`.
+`latest.json` apunta a assets publicos en `conte-martin/conte-cli-installer` para que la instalacion sin token y `conte update` no requieran `GITHUB_TOKEN`.
 
-Flujo completo de release:
+La publicacion hosted se divide entre el repositorio privado de codigo fuente y el repositorio publico de instaladores:
 
 1. Pushear el tag `vX.Y.Z` a `conte-cli`.
 2. `conte-cli` construye artefactos y crea el GitHub Release privado.
 3. `conte-cli` dispara `repository_dispatch` en `conte-martin/conte-cli-installer` con event type `publish-release` usando `GITHUB_TOKEN`.
 4. `conte-cli-installer` descarga assets privados usando `CONTE_CLI_TOKEN`.
-5. `conte-cli-installer` crea el release publico con artefactos de plataforma, `checksums.txt` y `latest.json`.
+5. `conte-cli-installer` crea el release publico con assets publicos y `latest.json`.
 
 Secrets requeridos en GitHub Actions:
 
-- `conte-cli`: ningun secret custom; el workflow usa el `GITHUB_TOKEN` incorporado
-- `conte-cli-installer`: `CONTE_CLI_TOKEN` — debe tener acceso de lectura a los assets privados de `conte-martin/conte-cli`
+- `conte-cli`: ningun secret custom de release; el workflow usa `GITHUB_TOKEN`
+- `conte-cli-installer`: `CONTE_CLI_TOKEN`
 
-El workflow privado no imprime valores de tokens en los logs.
+`CONTE_CLI_TOKEN` debe poder leer assets privados desde `conte-martin/conte-cli` y permitir que el workflow publico cree o actualice el release publico. El workflow privado no imprime valores de tokens.

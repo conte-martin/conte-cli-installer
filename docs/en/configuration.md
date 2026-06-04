@@ -294,27 +294,26 @@ Workspace mode enables monorepo support. It is activated by `conte init --worksp
 {
   "workspace": {
     "enabled": true,
-    "releaseMode": "independent",
-    "scopePathValidation": "strict",
-    "sharedScopes": ["chore", "deps"],
+    "releaseMode": "service",
+    "serviceDetection": "path",
+    "scopeMeaning": "ticket",
+    "multiServicePolicy": "fail",
+    "scopePathValidation": true,
+    "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
-        "name": "api",
-        "path": "services/api",
-        "scope": "api",
-        "version": "1.0.0",
-        "changelogFile": "services/api/CHANGELOG.md",
-        "tagPrefix": "api-v",
-        "releaseMode": "independent"
+        "name": "orders-api",
+        "path": "services/orders-api",
+        "tagPrefix": "orders-api@",
+        "changelogFile": "services/orders-api/CHANGELOG.md",
+        "version": "1.3.0"
       },
       {
-        "name": "worker",
-        "path": "services/worker",
-        "scope": "worker",
-        "version": "0.3.1",
-        "changelogFile": "services/worker/CHANGELOG.md",
-        "tagPrefix": "worker-v",
-        "releaseMode": "independent"
+        "name": "billing-api",
+        "path": "services/billing-api",
+        "tagPrefix": "billing-api@",
+        "changelogFile": "services/billing-api/CHANGELOG.md",
+        "version": "0.8.2"
       }
     ]
   }
@@ -324,9 +323,12 @@ Workspace mode enables monorepo support. It is activated by `conte init --worksp
 Fields:
 
 - `enabled` — `true` when workspace mode is active
-- `releaseMode` — `"single"` (one shared release for the whole repository) or `"independent"` (each service releases independently)
-- `scopePathValidation` — `"off"` (disabled), `"warn"` (report mismatches), or `"strict"` (block commits whose scope does not match the file paths changed)
-- `sharedScopes` — list of commit scopes that are exempt from scope/path validation (e.g. `chore`, `deps`)
+- `releaseMode` — `"repository"` (one shared release for the whole repository) or `"service"` (each service releases independently). Older configs may still use `"single"` or `"independent"`.
+- `serviceDetection` — currently `"path"`; services are resolved by their declared repository-relative paths.
+- `scopeMeaning` — `"ticket"` means Conventional Commit scope remains ticket/story/issue context and does not represent a service name.
+- `multiServicePolicy` — `"fail"`, `"warn"`, or `"allow"` for commits that touch multiple services.
+- `scopePathValidation` — `true` enables workspace path/service consistency checks. Older configs may still use `"off"`, `"warn"`, or `"strict"`.
+- `sharedScopes` — list of repository-wide Conventional Commit scopes such as `repo`, `docs`, `ci`, `build`, and `deps`.
 - `services[]` — list of declared services
 
 Service fields:
@@ -335,18 +337,20 @@ Service fields:
 |---|---|---|
 | `name` | yes | Unique service identifier; must match `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `path` | yes | Relative path to the service root inside the repository |
-| `scope` | yes | Conventional Commit scope assigned to this service; must match `^[a-z0-9]+(-[a-z0-9]+)*$` |
+| `tagPrefix` | yes | Git tag prefix for service releases (e.g. `orders-api@`) |
+| `changelogFile` | yes | Relative path to the service changelog |
 | `version` | yes | Current service version; strict SemVer `X.Y.Z` |
-| `changelogFile` | recommended | Relative path to the service changelog; defaults to repository-level `CHANGELOG.md` when absent |
-| `tagPrefix` | recommended | Git tag prefix for service releases (e.g. `api-v` produces `api-v1.0.0`) |
-| `releaseMode` | optional | Per-service override for `releaseMode` |
 
 Rules:
 
-- service `name`, `path`, `scope`, and `tagPrefix` values must be unique across all declared services
-- `path` and `changelogFile` must be relative paths that do not escape the repository root
+- service `name`, `path`, and `tagPrefix` values must be unique across all declared services
+- service paths must exist, be unique, and be non-overlapping for `conte doctor` to pass
+- `path` and `changelogFile` must be safe relative paths that do not escape the repository root
+- changelog files do not need to exist before release creation, but their parent directories must exist for diagnostics to pass
 - workspace configuration is repository-local and always written to `.conte/config.json`; it is not a global or layered concern
-- `conte workspace doctor` validates all of these constraints and reports `[ok]`, `[warn]`, or `[error]` per field
+- `conte status` shows `Workspace: disabled` when workspace config is missing or disabled. When enabled, it shows release mode, service detection, service count, and service name/path/version rows.
+- `conte doctor` treats missing workspace config as disabled, not as an error. When enabled, it validates release mode, service detection, services config, service paths, tag prefixes, changelog files, multi-service policy, and shared scopes.
+- `conte workspace doctor` validates workspace-specific constraints and reports `[ok]`, `[warn]`, or `[error]` per field
 
 Inspect workspace state:
 
