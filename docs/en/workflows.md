@@ -226,3 +226,62 @@ If a selected branch does not exist but `HEAD` has commits, Conte can create the
 If the repository has no commits, Conte stores the intended mapping and waits for the first commit before the branch can exist locally.
 
 For `gitflow`, the mapped `develop` branch follows the same rules, except that a missing local `develop` branch is created from the mapped `main` branch when possible.
+
+## Workspace / Monorepo service releases
+
+Workspace service releases work with the existing workflow rules. Branch eligibility and release timing still come from the selected workflow; service detection only decides which service changelog, version, and tag are affected.
+
+The key principle stays the same:
+
+```text
+The changelog is generated at release time from Conventional Commits.
+```
+
+Commit scopes do not represent service names in workspace mode:
+
+```text
+scope = ticket/story/issue/short functional context
+service = inferred by changed file path
+```
+
+Recommended:
+
+```text
+feat(us-12): agregar confirmación de pedido
+fix(issue-89): corregir validación de saldo
+```
+
+Not recommended:
+
+```text
+feat(orders-api-us-12): agregar confirmación de pedido
+feat(orders-api): agregar confirmación de pedido
+```
+
+### Trunk/Kanban style
+
+```text
+feature/us-12-confirm-order -> main
+release command runs from main or CI after merge
+```
+
+Example:
+
+```text
+Branch: feature/us-12-confirm-order
+Commit: feat(us-12): agregar confirmación de pedido
+Files: services/orders-api/src/ConfirmOrder.cs
+Command: conte release preview --service orders-api
+Tag: orders-api@1.4.0
+```
+
+### GitFlow style
+
+```text
+feature/us-12-confirm-order -> develop
+develop -> release/*
+release/* -> main
+service release runs when closing the release
+```
+
+For GitFlow, Conte keeps release eligibility tied to the resolved `develop` branch and the `release/*` lifecycle. Workspace service releases do not make service names valid commit scopes, and they do not change branch naming rules.

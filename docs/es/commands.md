@@ -145,7 +145,7 @@ conte config set version.current 1.2.3
 
 Claves de lectura:
 
-`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, `hooks.tasks`.
+`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, `hooks.tasks`, `workspace.enabled`, `workspace.releaseMode`.
 
 Claves de escritura:
 
@@ -285,6 +285,8 @@ Notas:
 
 - No modifica archivos y es apto para chequeos rapidos.
 - Muestra inicializacion, workflow, rama principal, rama actual, hooks, scope de commit, modo breaking y proximo bump.
+- Si workspace falta o esta deshabilitado, muestra `Workspace: disabled` y no lo trata como error.
+- Si workspace esta habilitado, muestra modo de release, deteccion de servicios, cantidad de servicios y cada servicio con nombre, path y version.
 - Para diagnosticos detallados, usar `conte doctor`.
 
 ## `conte doctor`
@@ -307,6 +309,8 @@ Notas:
 
 - `conte doctor` no modifica archivos.
 - `conte doctor` muestra secciones de CLI/runtime, separacion de comandos, diagnosticos del repositorio, hooks y config.
+- Si workspace falta o esta deshabilitado, lo informa como `disabled` y no falla por ese motivo.
+- Si workspace esta habilitado, valida modo de release, deteccion de servicios, campos requeridos, paths de servicios, prefijos de tags, paths de changelog, politica multi-servicio y scopes compartidos.
 - `conte doctor` separa `conte uninstall` como desinstalacion global/de sistema, `conte remove` como limpieza local del repositorio, y `conte self uninstall` como alias obsoleto.
 - `conte doctor --fix` puede reinstalar hooks gestionados, configurar `core.hooksPath=.conte/hooks`, actualizar estado local de hooks y reinstalar el commit template gestionado.
 - `conte doctor --fix` no desinstala la CLI global; usar `conte uninstall` para la desinstalacion global/de sistema.
@@ -325,6 +329,8 @@ conte validate commit --file .git/COMMIT_EDITMSG
 conte validate branch
 conte validate branch feat/add-login
 conte validate repo
+conte validate workspace
+conte validate workspace --range main..HEAD
 ```
 
 Notas:
@@ -333,7 +339,14 @@ Notas:
 - `commit --file <path>` valida un mensaje leido desde archivo.
 - `branch` valida la rama actual.
 - `branch <name>` valida una rama indicada sin hacer checkout.
+- `commit` y `branch` usan la configuracion del repositorio cuando existe; antes de `conte init`, usan defaults internos de CI para Conventional Commits con scope y familias de ramas.
 - `repo` valida configuracion, workflow, mapeo de ramas y consistencia de hooks.
+- `workspace` valida configuracion workspace/monorepo y reglas commit-a-servicio.
+- `workspace --range <base>..<head>` valida un rango explicito para CI o revisiones puntuales.
+- La validacion workspace exige `name`, `path`, `tagPrefix`, `changelogFile` y `version` por servicio; las rutas deben ser unicas y no solaparse.
+- Los commits workspace mantienen scopes Conventional Commit cortos (`^[a-z0-9-]+$`), fallan si afectan varios servicios con `multiServicePolicy=fail`, y los commits fuera de rutas de servicio requieren un scope de `workspace.sharedScopes`.
+- Workspace es opt-in desde `conte init --workspace`. Para service mode se puede usar `conte init --workspace --release-mode service --service orders-api --service-path services/orders-api`, y luego `conte workspace add-service orders-api --path services/orders-api` para registrar servicios adicionales. El scope del commit sigue representando ticket/historia/issue, no el nombre del servicio.
+- CI/CD debe ejecutar `conte validate workspace` y, cuando `workspace.enabled=true` con `workspace.releaseMode=service`, `conte release preview --all-services`.
 - No modifica archivos y es apto para CI.
 
 ## `conte workflow`
@@ -391,6 +404,8 @@ Comportamiento:
 - Los hooks gestionados incluyen `commit-msg`, `prepare-commit-msg`, `pre-commit`, `pre-push` y, cuando hay tareas, `post-merge`.
 - `conte hooks test commit-msg "<message>"` valida con las mismas reglas que el hook `commit-msg`.
 - `conte hooks test branch [branch-name]` valida la rama actual o indicada con las mismas reglas usadas por los hooks.
+- `commit-msg` valida solo el formato Conventional Commit con scope obligatorio; no inspecciona archivos cambiados ni resuelve servicios workspace.
+- `pre-push` valida rangos de commits enviados con reglas workspace commit-a-servicio cuando `workspace.enabled=true`.
 - `pre-commit` bloquea commits directos en ramas protegidas antes de ejecutar Hook Tasks.
 - `commit-msg` tambien bloquea commits directos en ramas protegidas despues de validar el mensaje, como proteccion de respaldo.
 - Las ramas protegidas son la rama main resuelta, `main`, `master`, la rama develop resuelta y `develop`; los nombres duplicados se muestran una sola vez.

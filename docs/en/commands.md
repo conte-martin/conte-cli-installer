@@ -231,7 +231,7 @@ In CI or non-interactive environments, `conte config` with no arguments prints t
 
 Without `--local` or `--global`, `conte config get <key>` returns the effective value after applying workspace, local, and global config layering. `conte config set <key> <value>` writes one repository-local value and validates known boolean and SemVer fields before writing.
 
-Readable keys include `workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, and `hooks.tasks`.
+Readable keys include `workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, `hooks.tasks`, `workspace.enabled`, and `workspace.releaseMode`.
 
 Writable keys are limited to `workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `hooks.enabled`, and `hooks.path`. Manage `hooks.installed` and `hooks.tasks` with `conte hooks` commands.
 
@@ -366,7 +366,7 @@ conte generate cicd --provider azure
 ```
 
 The generated template always calls the CLI instead of re-implementing validation rules in the provider file.
-The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, and `bash tests/run.sh` when present.
+The validation job runs `bash ./bin/conte status`, `bash ./bin/conte doctor`, `bash ./bin/conte release preview`, `bash ./bin/conte validate workspace`, conditionally `bash ./bin/conte release preview --all-services`, and `bash tests/run.sh` when present.
 
 If no provider is supplied, interactive terminals prompt for one and non-interactive runs fall back to `github`.
 
@@ -377,14 +377,18 @@ Shows a brief health summary with key repository properties.
 ```
 Conte Status
 
-Initialized: yes
-Workflow: kanban
-Main branch: main
-Current branch: main
-Hooks: enabled
-Commit scope: required
-Breaking change mode: manual command
-Next bump: none
+Repository
+  Initialized: [OK]
+  Workflow: Kanban
+  Main branch: main
+  Current branch: main
+
+Config
+  Commit scope: required
+  Breaking change mode: manual command
+  Next bump: none
+
+Workspace: disabled
 ```
 
 When not initialized:
@@ -399,6 +403,7 @@ Run: conte init
 ```
 
 `conte status` is fast and never performs repairs. Use it as a quick health check before committing or pushing.
+When `workspace.enabled=true`, it also prints the workspace release mode, service detection method, service count, and each declared service's name, path, and version. When the workspace section is missing or disabled, it prints `Workspace: disabled`; this is informational and is not an error.
 
 Branch validity is determined by the workflow rules:
 
@@ -447,6 +452,10 @@ Hooks
 Config
 
   .conte/config.json:            missing
+
+Workspace
+
+  enabled:                       disabled
 ```
 
 The Rules section is always shown regardless of initialization status.
@@ -503,6 +512,7 @@ Unsafe changes that require `--force` or manual action:
 - Scope rule presence
 - CI/CD provider and pipeline validation
 - Hook Tasks configuration
+- Workspace configuration. When workspace mode is disabled or absent, `doctor` reports it as disabled and does not fail. When enabled, it validates release mode, service detection, required service fields, service paths, tag prefixes, changelog file paths, multi-service policy, and shared scopes.
 
 ## `conte validate`
 
@@ -516,6 +526,8 @@ conte validate commit --file .git/COMMIT_EDITMSG
 conte validate branch
 conte validate branch feat/add-login
 conte validate repo
+conte validate workspace
+conte validate workspace --range main..HEAD
 ```
 
 Notes:
@@ -524,7 +536,13 @@ Notes:
 - `commit --file <path>` validates a commit message read from a file; supports multi-line messages
 - `branch` validates the current branch name against the configured workflow rules
 - `branch <name>` validates the given branch name without checking it out
+- `commit` and `branch` use repository config when present; before `conte init`, they fall back to Conte's built-in CI defaults for scoped Conventional Commits and branch families
 - `repo` validates repository configuration, workflow, branch mapping, and hook consistency
+- `workspace` validates workspace/monorepo service configuration and commit-to-service rules
+- `workspace --range <base>..<head>` validates an explicit commit range for CI or focused checks
+- Workspace validation requires service `name`, `path`, `tagPrefix`, `changelogFile`, and `version`; service paths must be unique and non-overlapping
+- Workspace commit validation keeps Conventional Commit scopes short (`^[a-z0-9-]+$`), fails multi-service commits when `multiServicePolicy=fail`, and requires commits outside service paths to use a scope from `workspace.sharedScopes`
+- CI/CD should run `conte validate workspace` and, when `workspace.enabled=true` with `workspace.releaseMode=service`, `conte release preview --all-services`
 - All subcommands are non-interactive and exit non-zero on failure
 - Does not modify repository state, install hooks, or run `conte doctor` automatically
 - When `repo` finds issues, it suggests running `conte doctor` for detailed diagnostics
@@ -561,14 +579,24 @@ Usage:
 ```bash
 conte workspace status
 conte workspace list
+conte workspace add-service orders-api --path services/orders-api
 conte workspace doctor
 ```
 
 Subcommands:
 
 - `status` — prints a summary of workspace configuration: enabled state, release mode, scope/path validation setting, shared scope count, and service count. When the current directory maps to a declared service, it is identified in the output.
-- `list` — lists all declared services with their name, path, scope, and version. When no services are declared, suggests how to add them.
-- `doctor` — runs workspace-specific diagnostics. Validates `releaseMode`, `scopePathValidation`, and each service's `name`, `path`, `scope`, `version`, `tagPrefix`, and `changelogFile`. Checks for duplicate names, scopes, paths, and tag prefixes. Exits non-zero when errors are found.
+- `list` — lists all declared services with their name, path, and version. When no services are declared, suggests how to add them.
+- `add-service` — adds a path-detected service to `.conte/config.json`. Defaults `changelogFile` to `<path>/CHANGELOG.md`, `tagPrefix` to `<name>@`, and `version` to `0.1.0`.
+- `doctor` — runs workspace-specific diagnostics. Validates `releaseMode`, `scopePathValidation`, and each service's `name`, `path`, `version`, `tagPrefix`, and `changelogFile`. Checks for duplicate names, paths, and tag prefixes. Exits non-zero when errors are found.
+
+Workspace can be configured during initialization:
+
+```bash
+conte init --workspace --release-mode service --service orders-api --service-path services/orders-api
+```
+
+Workspace is opt-in. Service detection currently supports `path` only. Service release mode requires at least one configured service. Conventional Commit scope remains ticket/story/issue context, not a service name.
 
 Expected output — `conte workspace status`:
 
@@ -576,8 +604,8 @@ Expected output — `conte workspace status`:
 Workspace Status
 
   Enabled: yes
-  Release mode: independent
-  Scope/path validation: strict
+  Release mode: service
+  Scope/path validation: true
   Shared scopes: 1
   Services: 2
 
@@ -740,12 +768,14 @@ Behavior:
 - strategic hooks are `commit-msg`, `pre-push`, and `prepare-commit-msg`; `pre-commit` is also supported
 - every Conte-managed hook includes the `# Managed by Conte CLI` marker
 - `commit-msg` validates Conventional Commits with required scope and executes enabled Hook Tasks for `commit-msg`
+- `commit-msg` does not inspect changed files, resolve workspace services, or enforce `multiServicePolicy` / `sharedScopes`
 - `commit-msg` also blocks direct commits to protected branches after message validation as fallback protection
 - `prepare-commit-msg` loads the shared hook runtime and runs enabled Hook Tasks for `prepare-commit-msg`
 - `pre-commit` validates the current branch against workflow rules, blocks direct commits to protected branches, and executes enabled Hook Tasks for `pre-commit`
 - protected direct-commit branches are the resolved main branch, `main`, `master`, the resolved develop branch, and `develop`; duplicate names are shown only once
 - CI or release automation may explicitly allow a protected-branch commit with `CONTE_ALLOW_PROTECTED_BRANCH_COMMIT=true`; this override is automation-only
 - `pre-push` validates the current branch against workflow rules and executes enabled Hook Tasks for `pre-push`
+- when `workspace.enabled=true`, `pre-push` validates pushed commit ranges with the same workspace commit-to-service rules as `conte validate workspace --range`
 - `pre-push` blocks pushes when:
   - current branch name does not match the required format (base regex)
   - current branch type is not allowed by the configured workflow
@@ -772,7 +802,7 @@ Notes:
 - `conte hooks status` exits non-zero when hooks are enabled in config but broken or missing, and also when the repository is in a partially configured state
 - Windows hook execution requires Git Bash because Conte-managed hooks use Bash-compatible runtime scripts
 - `git commit --no-verify` and `git push --no-verify` bypass local hooks
-- local hooks can be bypassed with `git commit --no-verify`, so repository branch protection and CI/CD checks remain required
+- local hooks can be bypassed with `git commit --no-verify` or `git push --no-verify`, so repository branch protection and CI/CD checks remain required
 
 ## `conte hooks task`
 
@@ -941,3 +971,163 @@ Notes:
 
 - `conte release preview` is always safe to run; it never writes files, updates config, or creates tags
 - old project-version paths under `conte version` (`get`, `set`, `next`, `breaking`) have been removed; use `conte semver` instead
+
+## Workspace / Monorepo service releases
+
+Workspace service releases use path-based service detection. Do not use the Conventional Commit scope as the service name.
+
+Recommended:
+
+```text
+feat(us-12): agregar confirmación de pedido
+fix(issue-89): corregir validación de saldo
+```
+
+Not recommended:
+
+```text
+feat(orders-api-us-12): agregar confirmación de pedido
+feat(orders-api): agregar confirmación de pedido
+```
+
+The scope represents ticket, story, issue, or short functional context. The service is detected from changed file paths:
+
+```text
+services/orders-api/src/ConfirmOrder.cs -> orders-api
+services/billing-api/src/Invoice.cs -> billing-api
+README.md -> no service / shared scope required
+```
+
+Preview one service:
+
+```bash
+conte release preview --service orders-api
+```
+
+Expected summary:
+
+```text
+Service: orders-api
+Current version: 1.3.0
+Next version: 1.4.0
+Bump: MINOR
+
+Tag to create:
+  orders-api@1.4.0
+
+No changes were written.
+```
+
+Create one service release:
+
+```bash
+conte release create --service orders-api
+conte release create --service orders-api --yes
+```
+
+Expected effects:
+
+```text
+updates services/orders-api/CHANGELOG.md
+updates .conte/config.json service version
+creates commit chore(release): orders-api 1.4.0
+creates tag orders-api@1.4.0
+```
+
+Preview all services:
+
+```bash
+conte release preview --all-services
+```
+
+Expected summary:
+
+```text
+Workspace release preview
+
+Services with releasable changes:
+
+orders-api
+  Current version: 1.3.0
+  Next version: 1.4.0
+  Bump: MINOR
+  Tag: orders-api@1.4.0
+
+billing-api
+  Current version: 0.8.2
+  Next version: 0.8.3
+  Bump: PATCH
+  Tag: billing-api@0.8.3
+
+No changes were written.
+```
+
+Create all services. Default mode creates one release commit per service:
+
+```bash
+conte release create --all-services
+```
+
+Expected commits:
+
+```text
+chore(release): orders-api 1.4.0
+chore(release): billing-api 0.8.3
+```
+
+Global mode creates one commit for all changed services:
+
+```bash
+conte release create --all-services --global
+conte release create --all-services -g
+```
+
+Expected commit:
+
+```text
+chore(release): publish workspace services
+```
+
+Expected tags:
+
+```text
+orders-api@1.4.0
+billing-api@0.8.3
+```
+
+Use `--global` to reduce release commit noise when publishing several services together.
+
+Validate workspace:
+
+```bash
+conte validate workspace
+conte validate workspace --range main..HEAD
+```
+
+It checks service definitions, non-overlapping paths, commit scope format, multi-service commits, and shared-scope commits outside service paths.
+
+Status and doctor:
+
+```bash
+conte status
+conte doctor
+```
+
+They show workspace status and diagnose service config, path, tag, and changelog issues.
+
+Initialize workspace mode:
+
+```bash
+conte init
+conte init --workspace --release-mode service --service orders-api --service-path services/orders-api
+```
+
+Workspace is opt-in.
+
+Add a service:
+
+```bash
+conte workspace add-service orders-api --path services/orders-api
+```
+
+`conte workspace add-service` is implemented. It writes a path-detected service to `.conte/config.json` with default `tagPrefix`, `changelogFile`, and `version` unless those options are provided.

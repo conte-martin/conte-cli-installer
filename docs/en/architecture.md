@@ -1,7 +1,5 @@
 # Architecture
 
-This document describes the internal architecture of Conte CLI — the tool installed by this repository's scripts. The source code lives in `conte-martin/conte-cli`. The installer (`conte-martin/conte-cli-installer`) is only responsible for public distribution and does not contain CLI logic.
-
 ## Phase 6 Model
 
 Conte CLI operates as a workflow-driven validation, release, CI/CD, Hook Tasks, and distribution platform.
@@ -157,9 +155,11 @@ Each template is workflow-aware and provider-aware, but intentionally thin in lo
 - `bash ./bin/conte status`
 - `bash ./bin/conte doctor`
 - `bash ./bin/conte release preview`
+- `bash ./bin/conte validate workspace`
+- `bash ./bin/conte release preview --all-services` when workspace service release mode is active
 - `bash tests/run.sh` when present
 
-That keeps branch validation, commit validation, config validation, and release validation inside one codebase.
+That keeps branch validation, commit validation, config validation, workspace validation, and release validation inside one codebase.
 
 ## Release Engine
 
@@ -319,7 +319,7 @@ The distribution model remains intentionally lightweight: the CLI is Bash-first,
 }
 ```
 
-The default metadata URL is resolved from `CONTE_RELEASE_METADATA_URL` if set, otherwise from `https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json`. The `latest.json` file is published by this installer repository (`conte-martin/conte-cli-installer`). The CLI source, packaging, release artifact builds, update logic, and metadata contract are owned by `conte-martin/conte-cli`; this repository is responsible for making those artifacts publicly accessible without requiring a `GITHUB_TOKEN`.
+The default metadata URL is resolved from `CONTE_RELEASE_METADATA_URL` if set, otherwise from `https://github.com/conte-martin/conte-cli-installer/releases/latest/download/latest.json`. The core repository still owns the CLI code, packaging, release artifacts, update logic, and metadata contract; the public installer repository exposes tokenless install scripts and public release metadata/assets.
 
 ## Telemetry Design
 

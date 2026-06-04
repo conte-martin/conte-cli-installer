@@ -75,6 +75,10 @@ All commands behave as they did before this feature was introduced. No workspace
 - `conte service list/status/doctor` provide service-specific views.
 - `conte validate commit` additionally validates that the commit scope is declared in `services[].scope` or `sharedScopes`.
 - `conte validate scope-paths` checks service scope/path consistency.
+- `conte validate workspace` validates service required fields, unique and non-overlapping service paths, commit scope format, multi-service commit policy, and shared/global commit scopes. `--range <base>..<head>` may be used for CI.
+- `commit-msg` remains limited to Conventional Commit format validation and does not inspect changed files or resolve services.
+- `pre-push` validates pushed commit ranges with workspace commit-to-service rules when workspace mode is enabled.
+- CI/CD must run `conte validate workspace` and, when service release mode is active, `conte release preview --all-services`, because local hooks can be bypassed with `--no-verify`.
 - `conte release preview --service <name>` previews a scoped release without writing files.
 - `conte release create --service <name>` creates a scoped release.
 
