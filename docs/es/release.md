@@ -40,8 +40,8 @@ El comando realiza estos pasos:
 1. carga `.conte/config.json`
 2. resuelve workflow y branch mapping logico
 3. valida el estado del repositorio y exige working tree limpio
-4. encuentra el ultimo tag `vX.Y.Z`
-5. lee commits no-merge desde ese tag
+4. resuelve el ultimo tag valido `vX.Y.Z`, el ultimo commit de release de Conte, o el baseline de adopcion
+5. lee commits no-merge despues de ese marker
 6. valida esos commits
 7. calcula la siguiente version SemVer
 8. en modo scoped y solo en workflows soportados crea `release/<scope>` y hace cherry-pick solo de los commits seleccionados
@@ -56,9 +56,11 @@ El comando es determinista:
 - `version.current` guarda SemVer sin prefijo
 - `version.breaking` guarda el override major del proximo release como `true` o `false`
 - los tags Git usan `vX.Y.Z`
-- el input del release es el historial de commits desde el ultimo marker de release: el ultimo tag `v*` relevante, o el ultimo commit de release de Conte cuando existe un release `--no-tag` mas nuevo
+- el input del release es el historial de commits desde el ultimo marker de release: ultimo tag valido, ultimo commit de release de Conte, y luego `release.baselineRef`
+- si no hay marker ni baseline y el repositorio tiene mas de un commit, el release falla con `No release baseline found. Run: conte history adopt --from HEAD`
+- `--full-history` es el escape hatch explicito para permitir un primer escaneo completo
 - los merge commits se ignoran
-- commits Conventional Commits no-merge invalidos hacen fallar el release antes del calculo de version
+- commits no-merge invalidos despues del marker activo hacen fallar el release antes del calculo de version
 - el scope del commit es obligatorio
 - la descripcion del commit puede usar mayusculas o minusculas
 
@@ -129,7 +131,10 @@ Si no hay commits versionables para el scope seleccionado, falla salvo que se us
 
 - `version.current` guarda SemVer sin prefijo
 - los tags Git usan `vX.Y.Z`
-- si todavia no existe un tag de release, Conte usa `version.current` como baseline
+- si todavia no existe un tag de release, Conte usa `release.baselineRef` cuando esta configurado
+- `conte init --yes` guarda el `HEAD` actual como baseline en repositorios existentes; repositorios vacios no escriben baseline
+- repositorios antiguos pueden adoptarse con `conte history adopt --from HEAD`
+- las politicas por defecto son `historyPolicy=ignore-before-baseline` e `invalidCommitPolicy=fail-after-baseline`
 
 ## Releases De Servicios
 
@@ -145,6 +150,8 @@ conte release create --all-services
 conte release create --all-services --global
 conte release create --all-services -g
 ```
+
+Los releases de servicios usan `git log <range> -- <service path>`: primero desde el tag del servicio, luego desde `service.baselineRef` si existe, y finalmente desde el baseline global `release.baselineRef`. No escanean `HEAD`/historial completo por defecto.
 
 `conte release preview --all-services` muestra todos los servicios con cambios releaseables y no escribe archivos. `conte release create --all-services` crea un commit por servicio cambiado. `conte release create --all-services --global` es el modo recomendado para reducir ruido: crea un unico commit `chore(release): publish workspace services` y un tag por servicio cambiado.
 

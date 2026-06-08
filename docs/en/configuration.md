@@ -46,7 +46,11 @@ Conte stores repository choices in `.conte/config.json`.
   },
   "release": {
     "tagPrefix": "v",
-    "changelogFile": "CHANGELOG.md"
+    "changelogFile": "CHANGELOG.md",
+    "baselineRef": "9f2c1d0...",
+    "baselineVersion": "0.1.0",
+    "historyPolicy": "ignore-before-baseline",
+    "invalidCommitPolicy": "fail-after-baseline"
   }
 }
 ```
@@ -66,6 +70,7 @@ Config stores:
 - logical-to-real branch mapping
 - scope validation preference
 - release tag prefix and changelog file path
+- release adoption baseline and history policy
 - hook enforcement state
 - hook installation path
 - selected installed hooks
@@ -193,21 +198,35 @@ Git tags are derived from the version value with a `v` prefix:
 v0.1.0
 ```
 
-Conte uses the latest release tag as the release baseline when one exists. If no release tag exists yet, it uses the stored version as the baseline.
+Conte uses the latest release tag as the release baseline when one exists. Existing repositories can also store an adoption baseline so old non-conventional history is ignored.
 
 ## Release Settings
 
-The config stores the tag prefix and changelog file path:
+The config stores the tag prefix, changelog file path, and adoption baseline:
 
 ```json
 "release": {
   "tagPrefix": "v",
-  "changelogFile": "CHANGELOG.md"
+  "changelogFile": "CHANGELOG.md",
+  "baselineRef": "9f2c1d0...",
+  "baselineVersion": "0.1.0",
+  "historyPolicy": "ignore-before-baseline",
+  "invalidCommitPolicy": "fail-after-baseline"
 }
 ```
 
 `tagPrefix` is prepended to the bare SemVer to produce the Git tag (e.g. `v0.2.0`).
 `changelogFile` names the file written by `conte release create`.
+`baselineRef` is the commit where Conte starts release tracking for an existing repository.
+`baselineVersion` is the version used when the baseline is the active marker.
+`historyPolicy=ignore-before-baseline` prevents full-history scans by default.
+`invalidCommitPolicy=fail-after-baseline` means old invalid commits are ignored, while invalid commits after adoption still fail releases.
+
+`conte init --yes` writes `release.baselineRef=HEAD` when the repository already has commits. Empty repositories do not get a baseline until the first commit exists. To adopt manually or repair an older config, run:
+
+```bash
+conte history adopt --from HEAD
+```
 
 Conte does not store changelog text, branch regex, branch lifecycle rules, merge rules, commit regex, or SemVer bump rules in config. Those remain derived behavior.
 
@@ -298,7 +317,7 @@ Workspace mode enables monorepo support. It is activated by `conte init --worksp
     "serviceDetection": "path",
     "scopeMeaning": "ticket",
     "multiServicePolicy": "fail",
-    "scopePathValidation": true,
+    "scopePathValidation": "off",
     "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
@@ -327,7 +346,7 @@ Fields:
 - `serviceDetection` — currently `"path"`; services are resolved by their declared repository-relative paths.
 - `scopeMeaning` — `"ticket"` means Conventional Commit scope remains ticket/story/issue context and does not represent a service name.
 - `multiServicePolicy` — `"fail"`, `"warn"`, or `"allow"` for commits that touch multiple services.
-- `scopePathValidation` — `true` enables workspace path/service consistency checks. Older configs may still use `"off"`, `"warn"`, or `"strict"`.
+- `scopePathValidation` — `"off"` by default for compatibility. Accepted values are `"off"`, `false`, `"warn"`, `"strict"`, and `true`.
 - `sharedScopes` — list of repository-wide Conventional Commit scopes such as `repo`, `docs`, `ci`, `build`, and `deps`.
 - `services[]` — list of declared services
 
