@@ -157,6 +157,25 @@ Los releases de servicios usan `git log <range> -- <service path>`: primero desd
 
 `--service` y `--all-services` son mutuamente excluyentes. `--global` solo aplica a `conte release create --all-services`.
 
+## Releases De Servicios
+
+En workspace mode con `releaseMode: service`, cada servicio se calcula desde los commits que tocan su `path`. El scope del Conventional Commit sigue siendo obligatorio, pero representa ticket, historia, issue o contexto corto; no representa el nombre del servicio.
+
+Comandos:
+
+```bash
+conte release preview --service <name>
+conte release create --service <name>
+conte release preview --all-services
+conte release create --all-services
+conte release create --all-services --global
+conte release create --all-services -g
+```
+
+`conte release preview --all-services` muestra todos los servicios con cambios releaseables y no escribe archivos. `conte release create --all-services` crea un commit por servicio cambiado. `conte release create --all-services --global` es el modo recomendado para reducir ruido: crea un unico commit `chore(release): publish workspace services` y un tag por servicio cambiado.
+
+`--service` y `--all-services` son mutuamente excluyentes. `--global` solo aplica a `conte release create --all-services`.
+
 ## Artefactos Hosted De Release
 
 El repositorio core produce los artefactos de release y mantiene el contrato de metadata. El workflow por tag se ejecuta con `vX.Y.Z`, crea los artefactos de Linux, macOS, ZIP de Windows e instalador de Windows, genera `checksums.txt`, y escribe `latest.json` con SemVer sin prefijo y URLs publicas.
