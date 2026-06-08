@@ -11,15 +11,16 @@ conte release sync-develop
 Supported options:
 
 ```bash
-conte release preview [--allow-empty-release] [--scope <scope>] [-s <scope>]
-                      [--scope-mode <full|strict>] [-m <full|strict>]
-                      [--include-internal] [--no-tag] [--no-changelog]
-                      [--service <name>] [--all-services]
-conte release create  [--allow-empty-release] [--scope <scope>] [-s <scope>]
-                      [--scope-mode <full|strict>] [-m <full|strict>]
-                      [--include-internal] [--no-tag] [--no-changelog]
-                      [--service <name>] [--all-services] [--global|-g]
-conte release sync-develop [--preview]
+conte release preview [-e|--allow-empty-release] [-s|--scope <scope>]
+                      [-m|--scope-mode <full|strict>]
+                      [-i|--include-internal] [-n|--no-tag] [-C|--no-changelog]
+                      [-S|--service <name>] [-a|--all-services] [--full-history]
+conte release create  [-e|--allow-empty-release] [-s|--scope <scope>]
+                      [-m|--scope-mode <full|strict>]
+                      [-i|--include-internal] [-n|--no-tag] [-C|--no-changelog]
+                      [-S|--service <name>] [-a|--all-services] [-g|--global]
+                      [--full-history]
+conte release sync-develop [-p|--preview]
 ```
 
 ## Command Model
@@ -54,8 +55,8 @@ The command performs these steps:
 3. resolve logical branch mapping from `git.mapping`
 4. validate repo state and require a clean working tree
 5. verify the current branch is eligible for release
-6. find the latest `vX.Y.Z` tag
-7. read non-merge commits since that tag
+6. resolve the latest valid `vX.Y.Z` tag, latest Conte release commit, or adoption baseline
+7. read non-merge commits after that marker
 8. validate those commits
 9. calculate the next SemVer version
 10. update `version.current` and clear `breakingChange.nextBump`
@@ -64,9 +65,11 @@ The command performs these steps:
 
 - `breakingChange.nextBump` stores the next-release major override as `"major"` or `null`
 - Git tags use `vX.Y.Z`
-- release input is commit history since the latest release marker: the latest relevant `v*` tag, or the latest Conte release commit when a newer `--no-tag` release exists
+- release input is commit history since the latest release marker: latest valid version tag, latest Conte release commit, then `release.baselineRef`
+- if no marker or baseline exists and the repository has more than one commit, release fails with `No release baseline found. Run: conte history adopt --from HEAD`
+- `--full-history` is the explicit escape hatch for repositories that intentionally want an unbounded first scan
 - merge commits are ignored
-- invalid non-merge Conventional Commits abort the release before version calculation
+- invalid non-merge Conventional Commits after the active marker abort the release before version calculation
 - commit scope is required
 - commit descriptions may use uppercase or lowercase letters
 
@@ -157,7 +160,13 @@ Git tags use the `v` prefix:
 v0.2.0
 ```
 
-If no release tag exists yet, Conte uses `version.current` as the release baseline.
+If no release tag exists yet, Conte uses `release.baselineRef` when configured. `conte init --yes` writes the current `HEAD` as that baseline for existing repositories, and empty repositories leave it unset. Older repositories can adopt safely with:
+
+```bash
+conte history adopt --from HEAD
+```
+
+The default policies are `historyPolicy=ignore-before-baseline` and `invalidCommitPolicy=fail-after-baseline`, so historical non-conventional commits do not fail future releases.
 
 ## Service Releases
 
@@ -177,8 +186,8 @@ conte release create --all-services -g
 Behavior:
 
 1. resolves the named service from `workspace.services[]` in `.conte/config.json`
-2. detects service commits from files under the service `path`
-3. reads commits since the last tag matching the service's `tagPrefix` pattern
+2. resolves the service path once
+3. reads commits with `git log <range> -- <service path>` since the service tag, service baseline, or global baseline
 4. calculates the next version for that service
 5. writes the service changelog to `changelogFile` when configured
 6. creates a tag using the service `tagPrefix` (e.g. `api-v1.2.0`)

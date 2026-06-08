@@ -80,8 +80,8 @@ Validation triggers include the branch families allowed by the workflow, while r
 
 The `conte-martin/conte-cli` repository uses separate GitHub Actions workflows by merge timing:
 
-- `ci-pr.yml` validates pull requests into `main`, `master`, or `develop`. It checks source branch rules, every non-merge PR commit subject, Bash syntax, fast unit tests, smoke integration, and workspace validation for code changes. Release-sensitive, Windows-sensitive, package, and documentation path checks run only when matching files change.
-- `ci-main.yml` validates the integrated state after a push to `main` or `master`. It runs the full Linux suite, cross-platform sensitive tests on Linux/macOS/Windows, release-history preview from real tags, and a Windows package dry run.
+- `ci-pr.yml` validates pull requests into `main`, `master`, or `develop`. It checks source branch rules, every non-merge PR commit subject, Bash syntax, fast unit tests, smoke integration, and focused suites for hooks, release, workspace, and uninstall-sensitive paths when matching files change.
+- `ci-main.yml` validates the integrated state after a push to `main` or `master`. It runs the full Linux suite with limited parallelism, cross-platform sensitive tests on Linux/macOS/Windows, release-history preview from real tags, and a Windows package dry run.
 - `ci-scheduled.yml` runs weekly and on manual dispatch to catch platform, installer, package, and toolchain drift that does not need to block every PR.
 - `ci-release.yml` is the only workflow that creates GitHub Releases. It runs only for tags matching `vX.Y.Z`, validates that the tag is reachable from `origin/main` or `origin/master`, builds artifacts, writes checksums and release metadata, and publishes the private release before dispatching the public installer release.
 
@@ -108,7 +108,9 @@ Recommended required pull request checks:
 - `Workspace validation` for code changes
 - `Integration smoke` for code changes
 
-Conditional checks such as `Release-sensitive tests`, `Windows-sensitive tests`, and `Package dry run` should remain visible and should be required through rulesets only when the touched paths make them relevant. Documentation review stays part of normal code review instead of a separate required path-link job. `Main CI`, `Scheduled CI`, and `Release CI` are not pull request checks; they validate integrated history, drift, and release publishing respectively.
+Conditional checks such as `Hooks-sensitive tests`, `Release-sensitive tests`, `Workspace-sensitive tests`, `Uninstall-sensitive tests`, `Windows-sensitive tests`, and `Package dry run` should remain visible and should be required through rulesets only when the touched paths make them relevant. Documentation review stays part of normal code review instead of a separate required path-link job. `Main CI`, `Scheduled CI`, and `Release CI` are not pull request checks; they validate integrated history, drift, and release publishing respectively.
+
+The local suite layout and `CONTE_TEST_JOBS` behavior are documented in [`docs/testing.md`](../testing.md).
 
 Merge queue is optional. If enabled, add a `merge_group` trigger to `ci-pr.yml` and require the same deterministic checks as pull requests without adding publishing or artifact upload steps.
 

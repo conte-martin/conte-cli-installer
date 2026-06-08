@@ -12,6 +12,7 @@ Conte CLI is a pure-Bash, Git-native workflow enforcement, release automation, a
 - Workspace (monorepo) support with per-service versioning and scope/path validation
 - CLI self-update with SHA256-verified artifact distribution
 - Three-layer config resolution: workspace → repository → global
+- Grouped help, TTY-only interactive menus, command suggestions, color-aware output, and cached update notifications
 
 **Platforms:** Linux (x64, arm64), macOS (x64, arm64), Windows (Git Bash + `bin/conte.cmd`)  
 **Runtime:** pure Bash and POSIX utilities — no Node.js, Python, or package managers required
@@ -45,11 +46,46 @@ conte doctor
 
 Windows users must run Git operations from Git Bash. `conte.cmd` is provided for PowerShell compatibility.
 
+## CLI option aliases
+
+Long options are the canonical implementation path. Public short options are normalized to their long option before command-specific logic runs.
+
+| Long option | Short option |
+| --- | --- |
+| `--help` | `-h` |
+| `--version` | `-v` |
+| `--yes` | `-y` |
+| `--force` | `-f` |
+| `--quiet` | `-q` |
+| `--verbose` | `-V` |
+| `--output` | `-o` |
+| `--config` | `-c` |
+| `--global` | `-g` |
+| `--local` | `-l` |
+| `--scope` | `-s` |
+| `--workflow` | `-w` |
+| `--service` | `-S` |
+| `--main-branch` | `-m` |
+| `--dry-run` | `-n` |
+
+When a short option would be ambiguous inside a command, Conte uses the command-local meaning shown in help. For example, `workflow validate-merge -s` means `--source`, while `release -s` means `--scope`.
+
+## CLI UX
+
+`conte`, `conte help`, and `conte --help` are grouped by intent: Getting started, Daily workflow, Release, Workspace, Configuration, and System. Running `conte` with no arguments shows a small dashboard; outside Git it suggests `conte init`, and inside an initialized repository it summarizes workflow, main branch, current branch, hook health, and next commands.
+
+Interactive menus are available through `conte menu`, `conte init --interactive`, `conte release --interactive`, and `conte doctor --fix-interactive`. Menus only appear when stdin and stdout are TTYs and CI is not detected. `--yes` and `--no-interactive` disable menus and prompts.
+
+Color defaults to `auto`: ANSI colors are emitted only on TTY output and are disabled in CI. Use `CONTE_COLOR=always|never`, `NO_COLOR=1`, or `FORCE_COLOR=1` to override.
+
+Conte checks for newer CLI versions opportunistically for `conte`, `conte help`, `conte version`, `conte status`, and `conte doctor`. Results are cached for 24 hours under `CONTE_HOME/cache`; failures never fail the original command. Disable with `CONTE_UPDATE_CHECK=0` or `conte config set update.check false`. `conte update` remains the explicit update command.
+
 ## Quick Start
 
 ```bash
 # Initialize repository
 conte init
+conte menu
 
 # Check repository health
 conte status
@@ -72,32 +108,32 @@ conte release create
 ```bash
 conte version
 conte update
-conte update --check
-conte update --version 1.2.3
+conte update -c
+conte update -v 1.2.3
 conte self version
-conte self update --check
+conte self update -c
 conte uninstall
-conte uninstall --yes
+conte uninstall -y
 ```
 
 **Repository setup and diagnostics:**
 
 ```bash
 conte init
-conte init --workflow gitflow --main-branch main --develop-branch develop --yes
-conte init --workspace
+conte init -w gitflow -M main -d develop -y
+conte init -W
 conte remove
 conte status
 conte doctor
-conte doctor --fix
+conte doctor -f
 ```
 
 **Configuration:**
 
 ```bash
 conte config list
-conte config --local
-conte config --global
+conte config -l
+conte config -g
 conte config get workflow
 conte config get version.current
 conte config set version.current 1.2.3
@@ -108,7 +144,7 @@ conte config set version.current 1.2.3
 ```bash
 conte hooks status
 conte hooks install
-conte hooks reinstall --force
+conte hooks reinstall -f
 conte hooks uninstall
 conte hooks doctor
 conte hooks test commit-msg "fix(auth): resolve token expiry"
@@ -119,11 +155,11 @@ conte hooks test branch feat/add-login
 
 ```bash
 conte hooks task list
-conte hooks task add dotnet-test --hook pre-push -- dotnet test
-conte hooks task add npm-lint --hook pre-commit -- npm run lint
-conte hooks task add npm-install --hook post-merge -- npm install
-conte hooks task add slow-check --hook manual --disabled -- ./check.sh
-conte hooks task edit dotnet-test --disable
+conte hooks task add dotnet-test -H pre-push -- dotnet test
+conte hooks task add npm-lint -H pre-commit -- npm run lint
+conte hooks task add npm-install -H post-merge -- npm install
+conte hooks task add slow-check -H manual -d -- ./check.sh
+conte hooks task edit dotnet-test -D
 conte hooks task run dotnet-test
 ```
 
@@ -131,14 +167,15 @@ conte hooks task run dotnet-test
 
 ```bash
 conte validate commit "fix(auth): resolve token expiry"
-conte validate commit --file .git/COMMIT_EDITMSG
+conte validate commit -F .git/COMMIT_EDITMSG
 conte validate branch feat/add-login
 conte validate branch
 conte validate repo
 conte validate workspace
-conte validate workspace --range main..HEAD
+conte validate workspace -r main..HEAD
 conte validate scope-paths
 conte workflow validate-merge --source feature/login --target develop
+conte workflow validate-merge -s feature/login -t develop
 ```
 
 **SemVer, changelog, and release:**
@@ -151,21 +188,20 @@ conte semver breaking
 conte changelog preview
 conte changelog generate
 conte release preview
-conte release preview --scope us-12
-conte release preview --service api
-conte release preview --all-services
+conte release preview -s us-12
+conte release preview -S api
+conte release preview -a
 conte release create
-conte release create --allow-empty-release
-conte release create --scope us-12 --scope-mode strict
-conte release create --service api
-conte release create --all-services
-conte release create --all-services --global
-conte release create --all-services -g
-conte release create --include-internal
-conte release create --no-tag
-conte release create --no-changelog
+conte release create -e
+conte release create -s us-12 -m strict
+conte release create -S api
+conte release create -a
+conte release create -a -g
+conte release create -i
+conte release create -n
+conte release create -C
 conte release sync-develop
-conte release sync-develop --preview
+conte release sync-develop -p
 ```
 
 **CI/CD template generation:**
@@ -175,7 +211,7 @@ conte generate cicd
 conte generate cicd github
 conte generate cicd gitlab
 conte generate cicd azure
-conte generate cicd --provider github
+conte generate cicd -p github
 ```
 
 **Workspace (monorepo):**
@@ -349,7 +385,7 @@ Hook Tasks cannot register Conte commands, replace internal validation, or exten
 
 ## Workspace (Monorepo) Support
 
-Workspace mode enables per-service versioning and scope/path validation within a single repository.
+Workspace mode enables per-service versioning within a single repository. Commit scope means ticket/story; service is detected from changed file paths.
 
 ```bash
 conte init --workspace
@@ -367,7 +403,7 @@ This extends `.conte/config.json` with a `workspace` block:
     "serviceDetection": "path",
     "scopeMeaning": "ticket",
     "multiServicePolicy": "fail",
-    "scopePathValidation": true,
+    "scopePathValidation": "off",
     "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
@@ -523,14 +559,22 @@ Default install root: `~/.conte` on Linux/macOS, `%USERPROFILE%\.conte` on Windo
 # Full suite
 bash tests/run.sh
 
-# Individual suites
-bash tests/unit/validation.sh
-bash tests/unit/release-semver.sh
-bash tests/integration/create-release.sh
+# Limited parallelism
+CONTE_TEST_JOBS=4 bash tests/run.sh
+
+# Focused suites
+bash tests/run-unit.sh
+bash tests/run-integration.sh
+bash tests/run-hooks.sh
+bash tests/run-release.sh
+bash tests/run-workspace.sh
+bash tests/run-regression.sh
 
 # Syntax check
 bash scripts/ci/check-bash-syntax.sh
 ```
+
+See [Testing Strategy](docs/testing.md) for suite boundaries, timing output, fixtures, and CI path filters.
 
 Windows:
 

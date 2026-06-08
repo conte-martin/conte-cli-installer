@@ -54,7 +54,7 @@ Complete `.conte/config.json` workspace example:
     "serviceDetection": "path",
     "scopeMeaning": "ticket",
     "multiServicePolicy": "fail",
-    "scopePathValidation": true,
+    "scopePathValidation": "off",
     "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
@@ -81,9 +81,9 @@ Workspace fields:
 - `enabled`: turns workspace support on or off
 - `releaseMode`: `repository` for one repository release, or `service` for independent service releases
 - `serviceDetection`: currently `path`
-- `scopeMeaning`: documents what the commit scope represents, usually `ticket`
+- `scopeMeaning`: `ticket` means commit scope represents a ticket/story, not a service
 - `multiServicePolicy`: controls commits touching multiple services
-- `scopePathValidation`: enables commit scope/path validation
+- `scopePathValidation`: controls optional scope/path validation; default is `off`
 - `sharedScopes`: scopes allowed for repo-wide changes
 - `services`: list of service definitions
 
