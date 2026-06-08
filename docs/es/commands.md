@@ -5,6 +5,7 @@
 Conte separa la preparacion del repositorio de la gestion de hooks y el diagnostico:
 
 - **`conte init`** prepara el repositorio: crea `.conte/config.json`, selecciona el workflow y el mapeo de ramas, genera el commit template e instala hooks opcionalmente.
+- **`conte history adopt`** registra el baseline de adopcion para repositorios con historial previo a Conte.
 - **`conte hooks install`** activa las validaciones Git de forma independiente a `init`.
 - **`conte doctor`** diagnostica la preparacion de la CLI/runtime y del repositorio, y sugiere correcciones locales seguras.
 
@@ -13,6 +14,7 @@ Regla interactiva: los comandos complejos sin argumentos pueden abrir menus solo
 Comandos que pueden abrir menus en modo interactivo sin argumentos:
 
 - `conte init`: asistente completo de onboarding.
+- `conte menu`: menu principal de comandos.
 - `conte hooks`: menu de gestion de hooks.
 - `conte config`: menu de configuracion.
 - `conte release`: menu de release.
@@ -20,6 +22,10 @@ Comandos que pueden abrir menus en modo interactivo sin argumentos:
 Comandos siempre directos:
 
 - `conte status`, `conte doctor`, `conte version`, `conte update`, `conte uninstall`, `conte remove`, `conte self`.
+
+Los menus solo aparecen si stdin y stdout son TTY y no se detecta CI. `--yes` y `--no-interactive` tambien desactivan menus y prompts. Los flujos interactivos siempre tienen equivalentes explicitos como `conte init --yes`, `conte doctor --fix`, `conte release preview` y `conte release create --yes`.
+
+La ayuda global agrupa comandos por intencion: Getting started, Daily workflow, Release, Workspace, Configuration y System.
 
 ## `conte help`
 
@@ -43,6 +49,36 @@ Notas:
 - Los temas de ayuda desconocidos vuelven a mostrar la ayuda global.
 - `conte --version` y `conte -v` imprimen la version instalada de la CLI.
 - No modifican el repositorio ni la instalacion y son aptos para scripts.
+
+## Aliases cortos de opciones
+
+Las opciones largas son la ruta canonica de implementacion. Las opciones cortas publicas se normalizan a su opcion larga antes de que corra la logica especifica del comando.
+
+| Opcion larga | Opcion corta |
+| --- | --- |
+| `--help` | `-h` |
+| `--version` | `-v` |
+| `--yes` | `-y` |
+| `--force` | `-f` |
+| `--quiet` | `-q` |
+| `--verbose` | `-V` |
+| `--output` | `-o` |
+| `--config` | `-c` |
+| `--global` | `-g` |
+| `--local` | `-l` |
+| `--scope` | `-s` |
+| `--workflow` | `-w` |
+| `--service` | `-S` |
+| `--main-branch` | `-m` |
+| `--dry-run` | `-n` |
+
+Cuando una opcion corta seria ambigua dentro de un comando, Conte usa el significado local mostrado en la ayuda. Por ejemplo, `workflow validate-merge -s` significa `--source`, mientras que `release -s` significa `--scope`.
+
+## Color y avisos de actualizacion
+
+El color esta centralizado y por defecto solo se emite en TTY. Usar `CONTE_COLOR=auto|always|never`, `NO_COLOR=1` o `FORCE_COLOR=1` para controlar ANSI. No se emiten codigos ANSI por defecto cuando la salida esta redirigida o se detecta CI.
+
+`conte`, `conte help`, `conte version`, `conte status` y `conte doctor` pueden mostrar un aviso cacheado de actualizacion. El cache vive en `CONTE_HOME/cache`, se refresca como maximo cada 24 horas y nunca hace fallar el comando original. Se desactiva con `CONTE_UPDATE_CHECK=0` o `conte config set update.check false`. `conte update` sigue siendo el flujo explicito de instalacion.
 
 ## `conte version`
 
@@ -71,14 +107,14 @@ Uso:
 
 ```bash
 conte update
-conte update --check
-conte update --version 1.2.3
+conte update -c
+conte update -v 1.2.3
 ```
 
 Opciones:
 
-- `--check`: consulta metadata y reporta si hay actualizacion disponible sin instalar.
-- `--version <x.y.z>`: solicita una version especifica.
+- `-c`, `--check`: consulta metadata y reporta si hay actualizacion disponible sin instalar.
+- `-v`, `--version <x.y.z>`: solicita una version especifica.
 - `-h`, `--help`: muestra ayuda.
 
 `--check` no modifica archivos. `conte update` y `conte update --version` pueden modificar la instalacion de la CLI.
@@ -91,33 +127,37 @@ Uso:
 
 ```bash
 conte init
-conte init --yes
-conte init --workflow kanban --main-branch main --force
-conte init --workflow trunk --yes
-conte init --workflow gitflow --main-branch main --develop-branch develop --yes
+conte init -y
+conte init -w kanban -M main -f
+conte init -w trunk -y
+conte init -w gitflow -M main -d develop -y
 conte init --advanced
-conte init --create-missing-branches --yes
-conte init --track-remote-branches --yes
-conte init --no-hooks --yes
+conte init -C -y
+conte init -T -y
+conte init -N -y
+conte init --interactive
 ```
 
 Opciones:
 
 - `-f`, `--force`: sobrescribe una `.conte/config.json` existente sin preguntar.
 - `-y`, `--yes`: ejecuta con defaults no interactivos.
+- `--interactive`: prefiere el asistente cuando hay TTY disponible.
+- `--no-interactive`: desactiva prompts incluso cuando hay TTY.
 - `-w`, `--workflow <name>`: selecciona workflow. Valores soportados: `trunk`, `gitflow`, `kanban`.
-- `--main-branch <name>`: define el mapeo logico de `main`.
-- `--develop-branch <name>`: define el mapeo logico de `develop` para `gitflow`.
-- `--create-missing-branches`: crea ramas mapeadas faltantes cuando `HEAD` ya tiene commits.
-- `--track-remote-branches`: crea ramas locales de tracking desde `origin/<branch>`.
-- `--advanced`: aceptado por compatibilidad; actualmente no cambia el comportamiento del parser.
-- `--no-hooks`: omite la instalacion de hooks.
+- `-M`, `--main-branch <name>`: define el mapeo logico de `main`.
+- `-d`, `--develop-branch <name>`: define el mapeo logico de `develop` para `gitflow`.
+- `-C`, `--create-missing-branches`: crea ramas mapeadas faltantes cuando `HEAD` ya tiene commits.
+- `-T`, `--track-remote-branches`: crea ramas locales de tracking desde `origin/<branch>`.
+- `-a`, `--advanced`: aceptado por compatibilidad; actualmente no cambia el comportamiento del parser.
+- `-N`, `--no-hooks`: omite la instalacion de hooks.
 - `-h`, `--help`: muestra ayuda.
 
 Comportamiento:
 
 - Sin argumentos en una terminal interactiva, abre el asistente.
 - En modo no interactivo con `--yes`, usa defaults.
+- En repositorios existentes con `HEAD`, `conte init --yes` guarda `release.baselineRef=HEAD`; el modo interactivo pregunta si se empieza a trackear releases desde el `HEAD` actual.
 - Es mutante: puede escribir `.conte/config.json`, `.conte/templates/commit-template.txt`, hooks en `.conte/hooks`, y configuracion Git local.
 - Si hooks quedan habilitados, Git se configura con `core.hooksPath=.conte/hooks`.
 - El commit template gestionado se escribe en `.conte/templates/commit-template.txt` y se activa con `git config commit.template .conte/templates/commit-template.txt`, salvo que ya exista un template local no gestionado.
@@ -135,8 +175,8 @@ Uso:
 ```bash
 conte config
 conte config list
-conte config --local
-conte config --global
+conte config -l
+conte config -g
 conte config get workflow
 conte config get git.mainBranch
 conte config get git.mapping.main
@@ -145,11 +185,11 @@ conte config set version.current 1.2.3
 
 Claves de lectura:
 
-`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, `hooks.tasks`, `workspace.enabled`, `workspace.releaseMode`.
+`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `release.baselineRef`, `release.baselineVersion`, `release.historyPolicy`, `release.invalidCommitPolicy`, `breakingChange.mode`, `breakingChange.nextBump`, `hooks.enabled`, `hooks.path`, `hooks.installed`, `hooks.tasks`, `workspace.enabled`, `workspace.releaseMode`, `update.check`.
 
 Claves de escritura:
 
-`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `hooks.enabled`, `hooks.path`.
+`workflow`, `version.current`, `version.breaking`, `git.mainBranch`, `git.developBranch`, `git.mapping.main`, `git.mapping.develop`, `commit.scopeRequired`, `commit.scopePattern`, `release.command`, `release.tagPrefix`, `release.changelogFile`, `release.baselineRef`, `release.baselineVersion`, `release.historyPolicy`, `release.invalidCommitPolicy`, `hooks.enabled`, `hooks.path`, `update.check`.
 
 Notas:
 
@@ -158,6 +198,32 @@ Notas:
 - `get` no modifica archivos.
 - `set` modifica la configuracion local del repositorio.
 - Gestionar `hooks.installed` y `hooks.tasks` con comandos `conte hooks`.
+
+## `conte history`
+
+Registra el baseline de adopcion para repositorios que ya tienen historial Git.
+
+Uso:
+
+```bash
+conte history adopt
+conte history adopt --from HEAD
+conte history adopt --from <ref> --version 1.2.3 --yes
+```
+
+Comportamiento:
+
+- valida que `--from` resuelva a un commit
+- escribe `release.baselineRef`
+- escribe `release.baselineVersion` desde `--version` o `version.current`
+- fija `release.historyPolicy=ignore-before-baseline`
+- fija `release.invalidCommitPolicy=fail-after-baseline`
+
+Usarlo cuando `conte release preview` informa:
+
+```text
+No release baseline found. Run: conte history adopt --from HEAD
+```
 
 ## `conte uninstall`
 
@@ -297,12 +363,15 @@ Uso:
 
 ```bash
 conte doctor
-conte doctor --fix
+conte doctor -f
+conte doctor --fix-interactive
 ```
 
 Opciones:
 
-- `--fix`: aplica solo reparaciones seguras locales al repositorio.
+- `-f`, `--fix`: aplica solo reparaciones seguras locales al repositorio.
+- `--fix-interactive`: pregunta antes de aplicar fixes seguros cuando hay TTY.
+- `--no-interactive`: desactiva prompts de reparacion.
 - `-h`, `--help`: muestra ayuda.
 
 Notas:
@@ -325,24 +394,24 @@ Uso:
 
 ```bash
 conte validate commit "fix(auth): corregir token"
-conte validate commit --file .git/COMMIT_EDITMSG
+conte validate commit -F .git/COMMIT_EDITMSG
 conte validate branch
 conte validate branch feat/add-login
 conte validate repo
 conte validate workspace
-conte validate workspace --range main..HEAD
+conte validate workspace -r main..HEAD
 ```
 
 Notas:
 
 - `commit <message>` valida un mensaje Conventional Commit con scope obligatorio.
-- `commit --file <path>` valida un mensaje leido desde archivo.
+- `commit -F, --file <path>` valida un mensaje leido desde archivo.
 - `branch` valida la rama actual.
 - `branch <name>` valida una rama indicada sin hacer checkout.
 - `commit` y `branch` usan la configuracion del repositorio cuando existe; antes de `conte init`, usan defaults internos de CI para Conventional Commits con scope y familias de ramas.
 - `repo` valida configuracion, workflow, mapeo de ramas y consistencia de hooks.
 - `workspace` valida configuracion workspace/monorepo y reglas commit-a-servicio.
-- `workspace --range <base>..<head>` valida un rango explicito para CI o revisiones puntuales.
+- `workspace -r, --range <base>..<head>` valida un rango explicito para CI o revisiones puntuales.
 - La validacion workspace exige `name`, `path`, `tagPrefix`, `changelogFile` y `version` por servicio; las rutas deben ser unicas y no solaparse.
 - Los commits workspace mantienen scopes Conventional Commit cortos (`^[a-z0-9-]+$`), fallan si afectan varios servicios con `multiServicePolicy=fail`, y los commits fuera de rutas de servicio requieren un scope de `workspace.sharedScopes`.
 - Workspace es opt-in desde `conte init --workspace`. Para service mode se puede usar `conte init --workspace --release-mode service --service orders-api --service-path services/orders-api`, y luego `conte workspace add-service orders-api --path services/orders-api` para registrar servicios adicionales. El scope del commit sigue representando ticket/historia/issue, no el nombre del servicio.
@@ -376,8 +445,8 @@ Uso:
 conte hooks
 conte hooks status
 conte hooks install
-conte hooks install --force
-conte hooks reinstall --force
+conte hooks install -f
+conte hooks reinstall -f
 conte hooks uninstall
 conte hooks doctor
 conte hooks test commit-msg "fix(auth): corregir token"
@@ -385,8 +454,8 @@ conte hooks test branch feat/add-login
 conte hooks task
 conte hooks task list
 conte hooks task --help
-conte hooks task add dotnet-test --hook pre-push -- dotnet test
-conte hooks task edit dotnet-test --name dotnet-test-all --hook manual --enable -- dotnet test
+conte hooks task add dotnet-test -H pre-push -- dotnet test
+conte hooks task edit dotnet-test -n dotnet-test-all -H manual -e -- dotnet test
 conte hooks task remove dotnet-test
 conte hooks task enable dotnet-test
 conte hooks task disable dotnet-test
@@ -422,9 +491,9 @@ Uso:
 ```bash
 conte hooks task
 conte hooks task list
-conte hooks task add dotnet-test --hook pre-push -- dotnet test
-conte hooks task add slow-check --hook manual --disabled -- ./check.sh
-conte hooks task edit dotnet-test --name dotnet-test-all --hook manual --enable -- dotnet test
+conte hooks task add dotnet-test -H pre-push -- dotnet test
+conte hooks task add slow-check -H manual -d -- ./check.sh
+conte hooks task edit dotnet-test -n dotnet-test-all -H manual -e -- dotnet test
 conte hooks task remove dotnet-test
 conte hooks task enable dotnet-test
 conte hooks task disable dotnet-test
@@ -434,8 +503,8 @@ conte hooks task menu
 
 Sintaxis:
 
-- `conte hooks task add <name> --hook <hook|manual> [--disabled] -- <command>`
-- `conte hooks task edit <name> [--name <new-name>] [--hook <hook|manual>] [--enable|--disable] [-- <command>]`
+- `conte hooks task add <name> -H, --hook <hook|manual> [-d, --disabled] -- <command>`
+- `conte hooks task edit <name> [-n, --name <new-name>] [-H, --hook <hook|manual>] [-e, --enable|-D, --disable] [-- <command>]`
 
 Targets soportados:
 
@@ -463,14 +532,14 @@ Uso:
 ```bash
 conte self version
 conte self update
-conte self update --check
-conte self update --version 1.2.3
+conte self update -c
+conte self update -v 1.2.3
 ```
 
 Subcomandos:
 
 - `version`: equivalente a `conte version`.
-- `update`: delega a `conte update` y acepta `--check` y `--version <x.y.z>`.
+- `update`: delega a `conte update` y acepta `-c, --check` y `-v, --version <x.y.z>`.
 - `uninstall`: alias obsoleto de `conte uninstall`.
 
 `self version` y `self update --check` no modifican archivos. `self update` puede modificar la instalacion global. `self uninstall` es un alias obsoleto; usar `conte uninstall` para desinstalar la CLI global. `conte uninstall` no afecta la configuracion local del repositorio. Usar `conte remove` dentro de un repositorio para quitar la configuracion local de Conte.
@@ -501,41 +570,50 @@ Uso:
 
 ```bash
 conte release preview
-conte release preview --allow-empty-release
+conte release preview -e
 conte release preview --scope us-12
 conte release preview -s us-12
+conte release preview --service api
+conte release preview -S api
 conte release preview --scope-mode strict
 conte release preview -m strict
-conte release preview --include-internal
-conte release preview --no-tag
-conte release preview --no-changelog
+conte release preview -i
+conte release preview -n
+conte release preview -C
+conte release preview --full-history
 conte release create
-conte release create --allow-empty-release
+conte release create -e
 conte release create --scope us-12
 conte release create -s us-12
 conte release create --scope us-12 --scope-mode strict
 conte release create -s us-12 -m strict
-conte release create --include-internal
-conte release create --no-tag
-conte release create --no-changelog
+conte release create --service api
+conte release create -S api
+conte release create -i
+conte release create -n
+conte release create -C
+conte release create --full-history
 conte release sync-develop
-conte release sync-develop --preview
+conte release sync-develop -p
 ```
 
 Opciones de `preview` y `create`:
 
-- `--allow-empty-release`: permite release sin commits versionables.
-- `--scope`, `-s <scope>`: limita el release a commits con ese scope exacto.
-- `--scope-mode`, `-m <full|strict>`: controla el modo scoped.
-- `--include-internal`: incluye commits internos con scope `release` en el changelog.
-- `--no-tag`: crea release sin tag Git.
-- `--no-changelog`: crea release sin escribir `CHANGELOG.md`.
+- `-e`, `--allow-empty-release`: permite release sin commits versionables.
+- `-s`, `--scope <scope>`: limita el release a commits con ese scope exacto.
+- `-S`, `--service <name>`: alias corto canonico para servicio.
+- `-m`, `--scope-mode <full|strict>`: controla el modo scoped.
+- `-i`, `--include-internal`: incluye commits internos con scope `release` en el changelog.
+- `-n`, `--no-tag`: crea release sin tag Git.
+- `-C`, `--no-changelog`: crea release sin escribir `CHANGELOG.md`.
+- `--full-history`: permite explicitamente escanear todo el historial cuando no hay marker ni baseline.
 
 Notas:
 
 - `conte release preview` es un dry-run seguro y no escribe archivos.
+- Por defecto, release y changelog no escanean todo el historial en repositorios con mas de un commit y sin marker/baseline.
 - `conte release create` es mutante: actualiza config/changelog y crea tag salvo opciones que lo omitan.
-- `conte release sync-develop [--preview]` esta disponible solo para GitFlow segun el codigo.
+- `conte release sync-develop [-p, --preview]` esta disponible solo para GitFlow segun el codigo.
 - Los commits son la fuente de verdad.
 - Merge commits y titulos de PR no son fuentes de changelog.
 - `git log --no-merges` es la base de recoleccion de commits para release.

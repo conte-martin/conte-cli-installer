@@ -47,7 +47,7 @@ Ejemplo completo:
     "serviceDetection": "path",
     "scopeMeaning": "ticket",
     "multiServicePolicy": "fail",
-    "scopePathValidation": true,
+    "scopePathValidation": "off",
     "sharedScopes": ["repo", "docs", "ci", "build", "deps"],
     "services": [
       {
@@ -74,9 +74,9 @@ Campos principales:
 - `enabled`: activa o desactiva workspace
 - `releaseMode`: `repository` o `service`
 - `serviceDetection`: actualmente `path`
-- `scopeMeaning`: documenta que representa el scope del commit
+- `scopeMeaning`: `ticket` indica que el scope del commit representa ticket/historia, no un servicio
 - `multiServicePolicy`: controla commits que tocan multiples servicios
-- `scopePathValidation`: activa validacion scope/ruta
+- `scopePathValidation`: controla la validacion opcional scope/ruta; por defecto es `off`
 - `sharedScopes`: scopes permitidos para cambios de repositorio
 - `services`: definiciones de servicios
 
